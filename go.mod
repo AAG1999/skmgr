@@ -3,7 +3,7 @@ module github.com/AAG1999/skmgr
 go 1.22.0
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
 	github.com/xeipuuv/gojsonschema v1.2.0
