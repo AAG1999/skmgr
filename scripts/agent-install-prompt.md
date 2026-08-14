@@ -24,11 +24,7 @@ Detect the current OS and architecture, install the `skmgr` CLI if it is missing
    2. Else: `curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh`
 
    **Linux**
-   1. If apt is available (Debian/Ubuntu):  
-      `echo "deb [trusted=yes] https://apt.fury.io/aag1999/ /" | sudo tee /etc/apt/sources.list.d/skmgr.list`  
-      then `sudo apt-get update && sudo apt-get install -y skmgr`
-   2. Else if yum/dnf is available (RHEL/CentOS/Fedora): install the Gemfury yum repo from the project README, then `sudo yum install -y skmgr` (or `dnf`)
-   3. Else: `curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh`
+   `curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh`
 
    **Windows (native PowerShell)**
    ```powershell

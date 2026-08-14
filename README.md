@@ -45,7 +45,7 @@ Detect OS/arch yourself (Linux, macOS, Windows, or WSL). If `skmgr --version` al
 
 Install with the first method that works:
 - macOS: `brew install AAG1999/tap/skmgr`, else `curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh`
-- Linux: Gemfury apt/yum if available, else the same `install.sh` one-liner
+- Linux: `install.sh` one-liner
 - Windows PowerShell: `irm https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.ps1 | iex` (refresh PATH afterward)
 - WSL: treat as Linux, not Windows
 - Fallback: `go install github.com/AAG1999/skmgr@latest` (Go 1.22+)
@@ -55,19 +55,6 @@ Verify with `skmgr --version`. Warn if `git` is missing. Do not invent URLs. Sho
 
 Full agent prompt: [`scripts/agent-install-prompt.md`](scripts/agent-install-prompt.md).
 
-**Ubuntu / Debian** (Gemfury):
-
-```bash
-echo "deb [trusted=yes] https://apt.fury.io/aag1999/ /" | sudo tee /etc/apt/sources.list.d/skmgr.list
-sudo apt-get update && sudo apt-get install skmgr
-```
-
-**CentOS / RHEL / Fedora:**
-
-```bash
-echo -e "[skmgr]\nname=skmgr\nbaseurl=https://yum.fury.io/aag1999/\nenabled=1\ngpgcheck=0" | sudo tee /etc/yum.repos.d/skmgr.repo
-sudo yum install skmgr
-```
 
 Pre-built binaries: [Releases](https://github.com/AAG1999/skmgr/releases).
 
