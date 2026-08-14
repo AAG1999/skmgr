@@ -320,7 +320,7 @@ jobs:
           go-version: 'stable'
 
       - name: Validate GoReleaser config
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           # Pin a v2 minor so a new GoReleaser release cannot turn deprecation
@@ -331,7 +331,7 @@ jobs:
       # Build a snapshot so the generation hook, the archive contents and the
       # packaging all run without needing a tag.
       - name: Build a snapshot release
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: '~> v2.17'
