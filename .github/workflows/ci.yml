@@ -21,7 +21,7 @@ jobs:
       # v2.9+ is required once CI's go-version: stable is Go 1.26 — older
       # golangci-lint binaries were built with Go 1.24 and panic on 1.26 stdlib.
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12
           args: --timeout=5m
