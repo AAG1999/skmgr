@@ -1,0 +1,25 @@
+name: test-project
+version: "1.0"
+targets:
+  - cursor
+  - gemini
+
+skills:
+  - name: frontend-design
+    source: https://github.com/anthropics/skills.git
+    path: skills/frontend-design
+    ref: v2.1.0
+
+  - name: coding-standards
+    source: https://github.com/acme/standards.git
+    path: rules/typescript
+    type: rule
+    ref: v1.0.0
+    scope: global
+
+  - name: deploy-helper
+    source: https://gitlab.internal.com/team/agent-skills.git
+    path: deploy-helper
+    ref: v3.0
+    targets:
+      - claude-code

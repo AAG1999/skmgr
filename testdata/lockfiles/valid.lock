@@ -1,0 +1,8 @@
+version: "1"
+generated_at: "2026-07-15T10:00:00Z"
+entries:
+  - name: test-skill
+    source: https://github.com/user/repo.git
+    commit_sha: abc123def456
+    content_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    resolved_at: "2026-07-15T10:00:00Z"

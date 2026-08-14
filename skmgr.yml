@@ -1,0 +1,32 @@
+name: skmgr
+version: "1"
+
+targets:
+#   - cursor
+#   - gemini
+#   - claude-code
+#   - copilot
+
+skills:
+# # Importing Full Repo Skills
+#   - name: anthropics
+#     source: https://github.com/anthropics/skills.git
+#     ref: main
+
+# # Importing Specific Skill from Repo
+#   - name: skill-creator
+#     source: https://github.com/anthropics/skills.git
+#     path: skills/skill-creator
+#     ref: main
+
+# # Importing a Local Skill
+#   - name: my-local-skill
+#     source: file://./path/to/my/local-skill
+
+# # When selected global scope, it will install that skill globally.
+# # By default it's installed project wide only
+#   - name: skill-creator
+#     source: https://github.com/anthropics/skills.git
+#     path: skills/skill-creator
+#     ref: main
+#     scope: global

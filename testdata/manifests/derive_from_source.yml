@@ -1,0 +1,7 @@
+# No path, so the name comes from the repository name in the source URL.
+name: derive-from-source
+targets:
+  - cursor
+
+skills:
+  - source: https://github.com/acme/shared-skills.git

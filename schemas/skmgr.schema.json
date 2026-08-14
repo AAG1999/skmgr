@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/AAG1999/skmgr/main/schemas/skmgr.schema.json",
+  "title": "skmgr manifest",
+  "description": "Declarative list of AI agent skills and rules for a project. Lives in skmgr.yml (or skmgr.yaml) at the project root.",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Project identifier. Conventionally the repository name."
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest format version. Currently \"1\".",
+      "examples": ["1"]
+    },
+    "targets": {
+      "type": "array",
+      "description": "Agents every skill is linked into, unless a skill overrides it.",
+      "items": { "$ref": "#/definitions/agent" },
+      "uniqueItems": true
+    },
+    "skills": {
+      "type": "array",
+      "description": "The skills and rules this project depends on.",
+      "items": { "$ref": "#/definitions/dependency" }
+    }
+  },
+  "definitions": {
+    "agent": {
+      "type": "string",
+      "enum": ["cursor", "gemini", "claude-code", "copilot"],
+      "description": "An agent skmgr knows how to install for."
+    },
+    "dependency": {
+      "type": "object",
+      "required": ["source"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/\\\\]+$",
+          "description": "Local alias and directory name. Optional: derived from `path`, or from the repository name, when omitted. Must be a single path component."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the skill comes from: a git URL, a local path, a file:// URL, or a local git clone prefixed with git:: to make refs apply.",
+          "examples": [
+            "https://github.com/anthropics/skills.git",
+            "git@github.com:org/skills.git",
+            "file:///home/me/skills",
+            "git::/srv/mirrors/skills.git"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Subdirectory within the source. Supports a trailing wildcard to install every match, each named after its own directory.",
+          "examples": ["skills/skill-creator", "skills/*"]
+        },
+        "ref": {
+          "type": "string",
+          "description": "Version to install: a tag, branch, commit SHA, or a semver range such as ^1.2.0, ~1.2, or latest. A range resolves to the newest matching tag. Defaults to the repository's default branch.",
+          "examples": ["main", "v1.2.3", "^1.2.0", "~1.2", "latest"]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["skill", "rule"],
+          "default": "skill",
+          "description": "A skill is a capability the agent can invoke; a rule is guidance merged into the agent's instructions."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["project", "global"],
+          "default": "project",
+          "description": "project installs into .agents/ in this repository; global installs into ~/.agents/ for every project on this machine."
+        },
+        "targets": {
+          "type": "array",
+          "description": "Agents for this skill only, overriding the manifest-level targets.",
+          "items": { "$ref": "#/definitions/agent" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

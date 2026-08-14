@@ -1,0 +1,37 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # Only what is listed below. A linter set that grows by default turns a
+  # toolchain bump into unrelated review noise.
+  default: none
+  enable:
+    - errcheck
+    - gocritic
+    - govet
+    - ineffassign
+    - misspell
+    # staticcheck in v2 also covers what used to be the separate gosimple and
+    # stylecheck linters.
+    - staticcheck
+    - unused
+  exclusions:
+    # Default exclusions hide whole classes of finding, including unchecked
+    # errors on Close and Write. This project writes files users cannot afford
+    # to lose, so those are exactly the ones worth seeing.
+    presets: []
+    rules:
+      # Test helpers legitimately ignore errors while provoking failures.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

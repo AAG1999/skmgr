@@ -1,0 +1,126 @@
+name: Nightly
+
+# Fuzzing and benchmarking are open-ended: they get better the longer they run,
+# and neither belongs on a pull request where the answer is needed in minutes.
+# They run once a day instead, with the corpus carried between runs so each
+# night resumes where the last one stopped rather than rediscovering the same
+# shallow inputs.
+on:
+  schedule:
+    # 03:17 UTC. Off the hour, because everything is scheduled on the hour and
+    # a queued runner makes a timing-sensitive benchmark useless.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: 'How long to run each fuzz target (Go duration)'
+        required: false
+        default: '10m'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      # One target failing should not cancel the others: a crash in the
+      # manifest parser says nothing about the lockfile reader, and finding
+      # both in one night is better than finding one.
+      fail-fast: false
+      matrix:
+        include:
+          - package: ./internal/manifest
+            target: FuzzParseBytes
+          - package: ./internal/manifest
+            target: FuzzDeriveName
+          - package: ./internal/lockfile
+            target: FuzzRead
+          - package: ./internal/lockfile
+            target: FuzzReadWriteRoundTrip
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      # A fuzzer that starts from nothing every night spends its whole budget
+      # rediscovering the same shallow inputs. Restoring the corpus is what
+      # makes a nightly run cumulative.
+      - name: Restore the fuzz corpus
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build/fuzz
+          key: fuzz-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-${{ matrix.target }}-
+
+      - name: Fuzz ${{ matrix.target }}
+        run: |
+          go test ${{ matrix.package }} \
+            -run '^${{ matrix.target }}$' \
+            -fuzz '^${{ matrix.target }}$' \
+            -fuzztime '${{ inputs.fuzztime || '10m' }}'
+
+      # A crashing input is the entire product of a fuzz run. It is written into
+      # testdata/fuzz/, so without this the failure is a log line nobody can
+      # reproduce.
+      - name: Upload the failing input
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-failure-${{ matrix.target }}
+          path: |
+            ${{ matrix.package }}/testdata/fuzz/
+          if-no-files-found: ignore
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Run benchmarks
+        run: |
+          set -euo pipefail
+
+          go test ./internal/lockfile ./internal/provider \
+            -run '^$' -bench . -benchmem -benchtime 200x \
+            | tee benchmarks.txt
+
+      # A shared runner is too noisy for a percentage threshold to mean
+      # anything, so this only catches a change large enough to be structural —
+      # an accidental O(n^2), or hashing a tree twice per install.
+      - name: Guard against a collapse in performance
+        run: |
+          set -euo pipefail
+
+          fail=0
+          while read -r name _ ns _; do
+            case "$name" in
+              BenchmarkHashDirectory/typical*) budget=50000000 ;;
+              BenchmarkAutoDiscovery/20_skills_no_noise*) budget=50000000 ;;
+              BenchmarkRead/10_entries*) budget=50000000 ;;
+              *) continue ;;
+            esac
+
+            if [ "${ns%.*}" -gt "$budget" ]; then
+              echo "FAIL: $name took ${ns}ns, budget ${budget}ns"
+              fail=1
+            else
+              echo "ok: $name at ${ns}ns"
+            fi
+          done < <(grep '^Benchmark' benchmarks.txt)
+
+          exit "$fail"
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: benchmarks.txt

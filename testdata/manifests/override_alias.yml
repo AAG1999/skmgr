@@ -1,0 +1,9 @@
+# An explicit name is a deliberate alias and wins over derivation.
+name: override-alias
+targets:
+  - cursor
+
+skills:
+  - name: fmt
+    source: https://github.com/acme/tools.git
+    path: skills/formatter

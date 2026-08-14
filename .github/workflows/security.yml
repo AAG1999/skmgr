@@ -1,0 +1,62 @@
+name: Security
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday
+
+jobs:
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  gosec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Five of gosec's rules fire on essentially every line of a tool whose
+      # job is to read paths out of a manifest and write directories a separate
+      # program has to open. Left on, they produce fifty-odd findings per run,
+      # which trains everyone to skim past the report — and a scanner nobody
+      # reads is worse than none, because it looks like coverage.
+      #
+      # Each exclusion below says what the rule warns about and what handles
+      # that risk instead. Everything not listed is still enforced.
+      #
+      # G204 (subprocess with a variable): skmgr shells out to git, and the URL
+      #   and ref have to come from the manifest. No shell is involved — every
+      #   call is exec with an argument slice — so there is nothing to quote.
+      #   The real risk in this shape is argument injection, since git reads a
+      #   leading '-' as an option and options like --upload-pack run a command
+      #   of their own. types.ValidateGitArgument rejects those in the parser
+      #   and again in the provider, covered by internal/types/gitarg_test.go
+      #   and internal/provider/argsafety_test.go.
+      #
+      # G301, G302, G306 (permissions wider than 0750/0600): installed skills
+      #   exist to be read by Cursor, Claude Code and Copilot, which may run as
+      #   a different user in a container or a shared CI image. Tightening
+      #   these would produce skills the agent cannot open. Nothing skmgr writes
+      #   is secret: it is public repository content plus a lockfile that gets
+      #   committed.
+      #
+      # G304 (file inclusion via a variable): every path skmgr touches is
+      #   variable, which is what a dependency manager does. Containment is
+      #   enforced by resolveWithinBase and filterWithinBase in the provider and
+      #   by types.ValidateName for anything that becomes a directory name,
+      #   covered by internal/provider/path_safety_test.go.
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: -exclude=G204,G301,G302,G304,G306 ./...

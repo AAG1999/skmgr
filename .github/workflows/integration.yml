@@ -1,0 +1,645 @@
+name: Integration
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  e2e:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # dyld on the macOS 26 runner rejects a Mach-O binary with no LC_UUID, which
+    # Go only emits by default from 1.24. -B=gobuildid backports it without a C
+    # toolchain and is ignored by newer toolchains. Through GOFLAGS it reaches
+    # every go invocation in the job. golang.org/issue/68678
+    env:
+      GOFLAGS: ${{ matrix.os == 'macos-latest' && '-ldflags=-B=gobuildid' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Build Binary
+        run: go build -o skmgr .
+        shell: bash
+        
+      - name: E2E Lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir e2e-test
+          cd e2e-test
+
+          # init detects agents from the directories that already exist.
+          mkdir -p .cursor .claude
+          ../skmgr init
+          cat skmgr.yml
+
+          grep -q '^  - cursor$' skmgr.yml
+          grep -q '^  - claude-code$' skmgr.yml
+
+          # Add a public skill (our own repo doubles as a dummy source).
+          ../skmgr add https://github.com/AAG1999/skmgr.git --name self-skill --path .github
+
+          test -d .agents/skills/self-skill
+          test -L .cursor/skills/self-skill
+          test -L .claude/skills/self-skill
+
+          ../skmgr list
+
+          ../skmgr remove self-skill
+          test ! -d .agents/skills/self-skill
+          test ! -L .cursor/skills/self-skill
+
+      # Every other step in this file uses skmgr's own repository as a stand-in
+      # source, which proves the plumbing but never the thing users actually do:
+      # install a real skill, written by someone else, laid out to the
+      # convention. This step does that against a pinned commit.
+      #
+      # The commit and the content hash are both hard-coded. Pinning only the
+      # commit would catch a repository being rewritten; pinning the hash as
+      # well also catches skmgr changing what it installs or how it hashes,
+      # which is the guarantee the lockfile is built on.
+      - name: Install a real skill from a pinned public commit
+        shell: bash
+        env:
+          PINNED_REPO: https://github.com/anthropics/skills.git
+          PINNED_COMMIT: fa0fa64bdc967915dc8399e803be67759e1e62b8
+          PINNED_HASH: sha256:89b66cee7e45f505d902f22a15f82291063c9ec1e030ff8ada5004a06fa03914
+        run: |
+          set -euo pipefail
+
+          mkdir -p pinned/.cursor
+          cd pinned
+
+          cat > skmgr.yml <<YML
+          version: "1"
+          name: pinned
+          targets:
+            - cursor
+          skills:
+            - source: $PINNED_REPO
+              path: skills/pdf
+              ref: "$PINNED_COMMIT"
+          YML
+
+          ../skmgr install
+
+          # The name is derived from the last path segment.
+          test -d .agents/skills/pdf
+          test -L .cursor/skills/pdf
+
+          # A real skill is a tree, not one file. Nested content must survive.
+          test -f .agents/skills/pdf/SKILL.md
+          test -f .agents/skills/pdf/reference.md
+          test -f .agents/skills/pdf/scripts/fill_pdf_form_with_annotations.py
+
+          grep -q "commit_sha: $PINNED_COMMIT" skmgr.lock
+
+          if ! grep -q "content_hash: $PINNED_HASH" skmgr.lock; then
+            echo "FAIL: the pinned commit no longer hashes to the expected value"
+            echo "expected: $PINNED_HASH"
+            grep content_hash skmgr.lock
+            exit 1
+          fi
+
+          ../skmgr verify
+          ../skmgr install --frozen
+          ../skmgr doctor
+
+          echo "OK: a real public skill installed reproducibly from a pinned commit"
+
+      # name is optional: it comes from the last path segment, or from the repo
+      # name when there is no path.
+      - name: Skill names are derived from source and path
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p derive-src/skills/deploy-helper
+          echo "# deploy" > derive-src/skills/deploy-helper/SKILL.md
+
+          mkdir -p derive/.cursor
+          cd derive
+          ../skmgr init
+
+          # No --name: the last path segment is used.
+          ../skmgr add "file://$PWD/../derive-src" --path skills/deploy-helper
+          cat skmgr.yml
+
+          test -d .agents/skills/deploy-helper
+          test -L .cursor/skills/deploy-helper
+
+          # A derivable name is not written back to the manifest as noise.
+          if grep -q 'name: deploy-helper' skmgr.yml; then
+            echo "FAIL: add wrote a name that skmgr can derive on its own"
+            exit 1
+          fi
+
+          # An explicit name still wins.
+          ../skmgr add "file://$PWD/../derive-src" --path skills/deploy-helper --name my-alias
+          test -d .agents/skills/my-alias
+          grep -q 'name: my-alias' skmgr.yml
+
+          echo "OK: names derive from path and explicit names override"
+
+      # --frozen must reproduce the lockfile exactly and not follow a branch.
+      - name: Frozen install reproduces the lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p frozen/.cursor
+          cd frozen
+          ../skmgr init
+          ../skmgr add https://github.com/AAG1999/skmgr.git --name frozen-skill --path .github
+
+          cp skmgr.lock expected.lock
+
+          rm -rf .agents
+          ../skmgr install --frozen
+
+          test -d .agents/skills/frozen-skill
+
+          # Frozen resolves nothing, so the recorded commit must not move.
+          grep 'commit_sha' expected.lock > expected-sha.txt
+          grep 'commit_sha' skmgr.lock > actual-sha.txt
+          diff expected-sha.txt actual-sha.txt
+
+          echo "OK: frozen install reproduced the locked commit"
+
+      - name: Frozen install fails without a lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p frozen-nolock/.cursor
+          cd frozen-nolock
+          ../skmgr init
+          ../skmgr add https://github.com/AAG1999/skmgr.git --name a-skill --path .github
+          rm skmgr.lock
+
+          if ../skmgr install --frozen; then
+            echo "FAIL: --frozen should refuse to run without a lockfile"
+            exit 1
+          fi
+          echo "OK: frozen without a lockfile was refused"
+
+      # update <name> must move only the named skill.
+      - name: Named update rejects unknown skills
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p named-update/.cursor
+          cd named-update
+          ../skmgr init
+          ../skmgr add https://github.com/AAG1999/skmgr.git --name real-skill --path .github
+
+          if ../skmgr update no-such-skill; then
+            echo "FAIL: update accepted a name that is not in the manifest"
+            exit 1
+          fi
+
+          ../skmgr update real-skill
+          test -d .agents/skills/real-skill
+          echo "OK: named update works and unknown names are rejected"
+
+      # Both manifest spellings must work everywhere.
+      - name: skmgr.yaml is accepted
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p yaml-parity/.cursor
+          cd yaml-parity
+
+          cat > skmgr.yaml <<'YML'
+          version: "1"
+          name: yaml-parity
+          targets:
+            - cursor
+          skills:
+            - source: https://github.com/AAG1999/skmgr.git
+              name: yaml-skill
+              path: .github
+          YML
+
+          ../skmgr install
+          test -d .agents/skills/yaml-skill
+          test -f skmgr.lock
+
+          ../skmgr list
+
+          # init must refuse rather than shadow the .yaml file with a .yml one.
+          if ../skmgr init; then
+            echo "FAIL: init overwrote a project that already had skmgr.yaml"
+            exit 1
+          fi
+          test ! -f skmgr.yml
+          echo "OK: .yaml parity and init refusal both hold"
+
+      # Dropping a merged rule must remove its block from the shared file.
+      - name: Clean strips managed rule blocks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+          export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+
+          # A rule directory needs a content file (AGENTS.md / SKILL.md / …).
+          # .github has none, so this step uses a tiny local git source.
+          mkdir -p rule-src/rules/merged-rule
+          echo "# merged rule body" > rule-src/rules/merged-rule/AGENTS.md
+          pushd rule-src >/dev/null
+          git init --quiet -b main
+          git add .
+          git commit --quiet -m "rule"
+          popd >/dev/null
+
+          mkdir -p clean-blocks/.claude
+          cd clean-blocks
+
+          cat > .claude/CLAUDE.md <<'MD'
+          # My own instructions
+
+          Always run the linter.
+          MD
+
+          ../skmgr init
+          ../skmgr add "git::$PWD/../rule-src" \
+            --name merged-rule --path rules/merged-rule --type rule
+
+          grep -q 'skmgr:start:merged-rule' .claude/CLAUDE.md
+
+          ../skmgr clean
+
+          if grep -q 'skmgr:start:' .claude/CLAUDE.md; then
+            echo "FAIL: clean left a managed block behind"
+            exit 1
+          fi
+          grep -q 'Always run the linter.' .claude/CLAUDE.md
+          echo "OK: managed block stripped, user content kept"
+
+      # Regression guard for the P0 bug where installing a project with no
+      # global skills deleted every globally installed skill on the machine.
+      - name: Global skills survive an unrelated project install
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Pre-seed the shared global tree as if another project owned it.
+          mkdir -p "$HOME/.agents/skills/pre-existing-global"
+          echo "# pre-existing" > "$HOME/.agents/skills/pre-existing-global/SKILL.md"
+
+          mkdir -p global-guard/.cursor
+          cd global-guard
+          ../skmgr init
+
+          # This project declares only project-scoped skills.
+          ../skmgr add https://github.com/AAG1999/skmgr.git --name guard-skill --path .github
+
+          # Run install twice: the first creates the ledger, the second prunes
+          # against it. The pre-existing global skill must survive both.
+          ../skmgr install
+          ../skmgr install
+
+          if [ ! -f "$HOME/.agents/skills/pre-existing-global/SKILL.md" ]; then
+            echo "FAIL: a project install deleted a pre-existing global skill"
+            exit 1
+          fi
+
+          test -f "$HOME/.skmgr/global.lock"
+          echo "OK: global skills survived and the ledger was written"
+
+      # Global scope must land in the home tree, never in the project.
+      - name: Global scope installs into the home directory
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p global-scope/.cursor
+          cd global-scope
+          ../skmgr init
+
+          ../skmgr add https://github.com/AAG1999/skmgr.git \
+            --name global-skill --path .github --scope global
+
+          test -d "$HOME/.agents/skills/global-skill"
+          test -L "$HOME/.cursor/skills/global-skill"
+
+          if [ -e ".cursor/skills/global-skill" ]; then
+            echo "FAIL: a global skill leaked a link into the project"
+            exit 1
+          fi
+          echo "OK: global scope stayed out of the project"
+
+      # --frozen must reject content that drifted under a pinned ref, and must
+      # do so without damaging what is already installed.
+      - name: Frozen install refuses drifted content and keeps the old install
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p drift-src/skills/pinned
+          echo "original" > drift-src/skills/pinned/SKILL.md
+
+          mkdir -p drift/.cursor
+          cd drift
+          ../skmgr init
+          ../skmgr add "file://$PWD/../drift-src" --path skills/pinned
+
+          grep -q original .agents/skills/pinned/SKILL.md
+
+          # Change the source behind the pin.
+          echo "tampered" > ../drift-src/skills/pinned/SKILL.md
+
+          if ../skmgr install --frozen; then
+            echo "FAIL: --frozen installed content that does not match the lock"
+            exit 1
+          fi
+
+          # The rejected install must not have replaced the good copy.
+          if ! grep -q original .agents/skills/pinned/SKILL.md; then
+            echo "FAIL: a rejected frozen install damaged the previous version"
+            exit 1
+          fi
+
+          # Without --frozen the new content is accepted.
+          ../skmgr install
+          grep -q tampered .agents/skills/pinned/SKILL.md
+          echo "OK: frozen refused the drift and left no partial state"
+
+      - name: Verify detects tampering and missing installs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p verify-src/skills/checked
+          echo "content" > verify-src/skills/checked/SKILL.md
+
+          mkdir -p verify/.cursor
+          cd verify
+          ../skmgr init
+          ../skmgr add "file://$PWD/../verify-src" --path skills/checked
+
+          ../skmgr verify
+          ../skmgr verify --json | grep -q '"status": *"ok"'
+
+          echo "edited by hand" >> .agents/skills/checked/SKILL.md
+          if ../skmgr verify; then
+            echo "FAIL: verify passed on modified content"
+            exit 1
+          fi
+
+          rm -rf .agents/skills/checked
+          if ../skmgr verify; then
+            echo "FAIL: verify passed on a missing install"
+            exit 1
+          fi
+
+          # list must agree with verify rather than trusting the lockfile.
+          ../skmgr list | grep -q missing
+          echo "OK: verify and list both report real disk state"
+
+      - name: Offline refuses what is not cached
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p offline/.cursor
+          cd offline
+          ../skmgr init
+
+          cat > skmgr.yml <<'YML'
+          version: "1"
+          name: offline
+          targets:
+            - cursor
+          skills:
+            - source: https://github.com/AAG1999/skmgr.git
+              path: .github
+              name: uncached-skill
+          YML
+
+          rm -rf "$HOME/.skmgr/cache"
+
+          if ../skmgr install --offline; then
+            echo "FAIL: --offline installed something that was never cached"
+            exit 1
+          fi
+
+          # The environment variable must have the same effect as the flag.
+          if SKMGR_OFFLINE=1 ../skmgr install; then
+            echo "FAIL: SKMGR_OFFLINE=1 did not forbid network access"
+            exit 1
+          fi
+
+          # Populate the cache once, then offline must succeed from it.
+          ../skmgr install
+          test -d .agents/skills/uncached-skill
+
+          rm -rf .agents
+          SKMGR_OFFLINE=1 ../skmgr install
+          test -d .agents/skills/uncached-skill
+          echo "OK: offline fails uncached and succeeds from the cache"
+
+      - name: Cache can be inspected and pruned
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p cache-mgmt/.cursor
+          cd cache-mgmt
+          ../skmgr init
+          ../skmgr add https://github.com/AAG1999/skmgr.git \
+            --name cached-skill --path .github
+
+          test -d "$(../skmgr cache path)"
+          ../skmgr cache info | grep -q 'cached commit'
+
+          # A dry run must report without deleting.
+          ../skmgr cache prune --older-than 0s --dry-run | grep -q 'Would remove'
+          ../skmgr cache info | grep -q 'cached commit'
+
+          ../skmgr cache prune --older-than 0s | grep -q 'Removed'
+          ../skmgr cache info | grep -q 'Cache is empty'
+          echo "OK: cache inspected and pruned"
+
+      # A crash mid-install must leave the previous version, not a mixture.
+      - name: Interrupted install leaves no partial state
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p partial-src/skills/big
+          echo "good version" > partial-src/skills/big/SKILL.md
+
+          mkdir -p partial/.cursor
+          cd partial
+          ../skmgr init
+          ../skmgr add "file://$PWD/../partial-src" --path skills/big
+
+          # Make the source unreadable so the next install fails part-way.
+          chmod 000 ../partial-src/skills/big/SKILL.md
+          echo "new file" > ../partial-src/skills/big/EXTRA.md
+
+          ../skmgr install || true
+          chmod 644 ../partial-src/skills/big/SKILL.md
+
+          # Either the install succeeded outright or it left the old version
+          # untouched. What must never happen is a half-written skill.
+          if [ -f .agents/skills/big/EXTRA.md ] && ! [ -f .agents/skills/big/SKILL.md ]; then
+            echo "FAIL: install left a partially copied skill"
+            exit 1
+          fi
+          test ! -d .agents/.staging
+          grep -q 'good version' .agents/skills/big/SKILL.md
+          echo "OK: no partial install state"
+
+      # Versioning end to end: a range follows releases, stops at the major
+      # boundary, and --latest is the deliberate way across.
+      - name: Semver ranges track releases
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+          export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+
+          mkdir -p semver-src/skills/tool
+          pushd semver-src >/dev/null
+          git init --quiet -b main
+          for v in v1.0.0 v1.1.0 v2.0.0; do
+            echo "version $v" > skills/tool/SKILL.md
+            git add .
+            git commit --quiet -m "release $v"
+            git tag "$v"
+          done
+          popd >/dev/null
+
+          mkdir -p semver/.cursor
+          cd semver
+
+          cat > skmgr.yml <<YML
+          version: "1"
+          name: semver
+          targets:
+            - cursor
+          skills:
+            - source: git::$PWD/../semver-src
+              path: skills/tool
+              ref: "^1.0.0"
+          YML
+
+          ../skmgr install
+
+          # v2.0.0 exists but is outside the range.
+          grep -q 'version v1.1.0' .agents/skills/tool/SKILL.md
+          grep -q 'resolved_ref: v1.1.0' skmgr.lock
+          grep -q 'version: "2"' skmgr.lock
+
+          # outdated must show the range, what is wanted, and what exists.
+          ../skmgr outdated
+          ../skmgr outdated --json | grep -q '"latest": *"v2.0.0"'
+
+          # A new patch inside the range is picked up by a plain update.
+          pushd ../semver-src >/dev/null
+          echo "version v1.2.0" > skills/tool/SKILL.md
+          git add . && git commit --quiet -m "release v1.2.0" && git tag v1.2.0
+          popd >/dev/null
+
+          ../skmgr update
+          grep -q 'version v1.2.0' .agents/skills/tool/SKILL.md
+
+          # --latest crosses the major deliberately, and does not stick.
+          ../skmgr update --latest
+          grep -q 'version v2.0.0' .agents/skills/tool/SKILL.md
+          grep -q 'ref: "\^1.0.0"' skmgr.yml
+
+          ../skmgr update
+          grep -q 'version v1.2.0' .agents/skills/tool/SKILL.md
+
+          echo "OK: ranges track releases and stop at the major boundary"
+
+      - name: A range against an untagged repository fails clearly
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+          export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+
+          mkdir -p untagged-src/skills/tool
+          echo "# tool" > untagged-src/skills/tool/SKILL.md
+          pushd untagged-src >/dev/null
+          git init --quiet -b main
+          git add . && git commit --quiet -m initial
+          popd >/dev/null
+
+          mkdir -p untagged/.cursor
+          cd untagged
+
+          cat > skmgr.yml <<YML
+          version: "1"
+          name: untagged
+          targets:
+            - cursor
+          skills:
+            - source: git::$PWD/../untagged-src
+              path: skills/tool
+              ref: "^1.0.0"
+          YML
+
+          if ../skmgr install 2> err.txt; then
+            echo "FAIL: a range resolved against a repository with no tags"
+            exit 1
+          fi
+          cat err.txt
+          grep -q 'no tags' err.txt
+          echo "OK: untagged repository reported clearly"
+
+      # A path escaping the source root must be refused, not silently copied.
+      - name: Path traversal is rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p traversal/src/skills/ok
+          echo "# ok" > traversal/src/skills/ok/SKILL.md
+          mkdir -p traversal/secret
+          echo "# secret" > traversal/secret/SKILL.md
+
+          cd traversal
+          ../skmgr init
+
+          if ../skmgr add "file://$PWD/src" --name evil --path ../secret; then
+            echo "FAIL: skmgr accepted a path escaping the source root"
+            exit 1
+          fi
+          echo "OK: traversal rejected"
+
+      # An unsafe skill name must be refused before it becomes a directory.
+      - name: Unsafe skill names are rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p unsafe-name/src/skills/ok
+          echo "# ok" > unsafe-name/src/skills/ok/SKILL.md
+
+          cd unsafe-name
+          ../skmgr init
+
+          if ../skmgr add "file://$PWD/src" --name "../escape" --path skills/ok; then
+            echo "FAIL: skmgr accepted a name containing a path traversal"
+            exit 1
+          fi
+          echo "OK: unsafe name rejected"

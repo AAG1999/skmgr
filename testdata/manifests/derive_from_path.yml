@@ -1,0 +1,11 @@
+# Names are omitted and derived from the last segment of each path.
+name: derive-from-path
+targets:
+  - cursor
+
+skills:
+  - source: https://github.com/acme/tools.git
+    path: skills/formatter
+
+  - source: https://github.com/acme/tools.git
+    path: skills/linter

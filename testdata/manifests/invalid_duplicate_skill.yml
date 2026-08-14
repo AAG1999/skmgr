@@ -1,0 +1,6 @@
+name: my-project
+skills:
+  - name: test
+    source: https://github.com/user/repo.git
+  - name: test
+    source: https://github.com/user/other.git

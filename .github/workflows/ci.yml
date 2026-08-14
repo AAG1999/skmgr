@@ -1,0 +1,363 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Download dependencies
+        run: go mod download
+      # Pinned to a v2 minor: the config is v2 format, and an unpinned version
+      # turns an upstream release into a broken build on an unrelated PR.
+      # v2.9+ is required once CI's go-version: stable is Go 1.26 — older
+      # golangci-lint binaries were built with Go 1.24 and panic on 1.26 stdlib.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12
+          args: --timeout=5m
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # The floor from go.mod and whatever is current. Testing only the floor
+        # misses breakage in new toolchains; testing only the newest lets the
+        # code drift past the version go.mod promises to support.
+        go: ['1.22', 'stable']
+    runs-on: ${{ matrix.os }}
+    # Go before 1.24 does not emit LC_UUID into Mach-O binaries, and dyld on the
+    # macOS 26 runner image refuses to load an executable without one, so every
+    # go build / test / run aborts before main. -B=gobuildid is the backport
+    # that generates it without needing a C toolchain; 1.24 and later do it by
+    # default and ignore the flag. Setting it through GOFLAGS applies it to every
+    # go invocation in the job, so a new step cannot forget it. Non-build
+    # subcommands (go env, go mod download) ignore it. golang.org/issue/68678
+    env:
+      GOFLAGS: ${{ matrix.os == 'macos-latest' && '-ldflags=-B=gobuildid' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Run Tests
+        run: |
+          EXTRA=()
+          # Coverage is only uploaded from ubuntu/1.22 below, so collecting a
+          # profile on every matrix cell is wasted work.
+          if [ "$RUNNER_OS" == "Linux" ] && [ "${{ matrix.go }}" == "1.22" ]; then
+            EXTRA+=(-coverprofile=coverage.out)
+          fi
+          # No -v: the suite emits ~10k lines of PASS on a green run, which
+          # buries the handful of lines that matter when it goes red. Failing
+          # tests still print their full output.
+          go test -race "${EXTRA[@]}" ./...
+        shell: bash
+
+      # The cmd package was untested for a long time, which is how several
+      # flags shipped doing nothing. Surface its coverage on its own so a
+      # regression is visible rather than hidden in the project-wide average.
+      - name: Per-package coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go tool cover -func=coverage.out | tail -1
+          echo "--- cmd package ---"
+          go tool cover -func=coverage.out | grep '/cmd/' | tail -20 || true
+
+      # Exercise the reproducibility features against a real remote on every
+      # OS in the matrix. The unit tests cover the logic; what this catches is
+      # platform-specific path, symlink and cache behavior that only shows up
+      # when the binary runs for real.
+      #
+      # A real remote is used rather than a file:// source because Git Bash on
+      # Windows reports MSYS paths (/d/a/...) that Go cannot resolve. Scenarios
+      # that need a mutable source live in integration.yml instead.
+      - name: CLI scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          go build -o skmgr-bin .
+          BIN="$PWD/skmgr-bin"
+
+          mkdir -p scenario/.cursor
+          cd scenario
+          "$BIN" init
+          "$BIN" add https://github.com/AAG1999/skmgr.git \
+            --name checked --path .github
+
+          # A fresh install must verify clean against its own lockfile.
+          "$BIN" verify
+
+          # Frozen must reproduce the same commit with the cache already warm.
+          cp skmgr.lock expected.lock
+          rm -rf .agents
+          "$BIN" install --frozen
+          grep commit_sha expected.lock > expected-sha.txt
+          grep commit_sha skmgr.lock > actual-sha.txt
+          diff expected-sha.txt actual-sha.txt
+          "$BIN" verify
+
+          # Offline must work from the warm cache, by flag and by environment.
+          rm -rf .agents
+          "$BIN" install --offline
+          rm -rf .agents
+          SKMGR_OFFLINE=1 "$BIN" install
+          "$BIN" verify
+
+          # Editing an install must be reported, not ignored.
+          echo "tampered" > .agents/skills/checked/tampered.md
+          if "$BIN" verify; then
+            echo "FAIL: verify passed on modified content"
+            exit 1
+          fi
+
+          # The cache is inspectable and prunable.
+          test -d "$("$BIN" cache path)"
+          "$BIN" cache info | grep -q 'cached commit'
+          "$BIN" cache prune --older-than 0s | grep -q 'Removed'
+          "$BIN" cache info | grep -q 'Cache is empty'
+
+          # With the cache gone, offline must now fail rather than download.
+          rm -rf .agents
+          if "$BIN" install --offline; then
+            echo "FAIL: --offline installed after the cache was pruned"
+            exit 1
+          fi
+
+          echo "OK: frozen, offline, verify and cache all behave"
+
+      # Range resolution touches git tag listing and path handling, both of
+      # which differ across platforms, so it runs on the whole matrix.
+      - name: Semver scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+          export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+
+          BIN="$PWD/skmgr-bin"
+
+          mkdir -p sv-src/skills/tool
+          pushd sv-src >/dev/null
+          git init --quiet -b main
+          for v in v1.0.0 v1.1.0 v2.0.0; do
+            echo "version $v" > skills/tool/SKILL.md
+            git add .
+            git commit --quiet -m "release $v"
+            git tag "$v"
+          done
+          popd >/dev/null
+
+          # The source has to be a path the platform git understands. Git Bash on
+          # Windows reports MSYS paths like /d/a/skmgr/skmgr/sv-src, which native
+          # Windows git reads as a nonexistent \d\a\... on the current drive, so
+          # ask for the D:/... form there. pwd -W is a Git Bash builtin.
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            SRC="$(cd sv-src && pwd -W)"
+          else
+            SRC="$(cd sv-src && pwd)"
+          fi
+
+          mkdir -p sv/.cursor
+          cd sv
+
+          cat > skmgr.yml <<YML
+          version: "1"
+          name: sv
+          targets:
+            - cursor
+          skills:
+            - source: git::$SRC
+              path: skills/tool
+              ref: "^1.0.0"
+          YML
+
+          "$BIN" install
+          grep -q 'version v1.1.0' .agents/skills/tool/SKILL.md
+          grep -q 'resolved_ref: v1.1.0' skmgr.lock
+
+          "$BIN" outdated --json | grep -q '"latest": *"v2.0.0"'
+
+          "$BIN" update --latest
+          grep -q 'version v2.0.0' .agents/skills/tool/SKILL.md
+
+          "$BIN" update
+          grep -q 'version v1.1.0' .agents/skills/tool/SKILL.md
+
+          echo "OK: semver ranges resolve and stop at the major boundary"
+
+      # A dry run that writes something is worse than no dry run at all, so the
+      # guarantee is checked on every platform rather than trusted.
+      - name: Dry-run scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BIN="$PWD/skmgr-bin"
+          cd sv
+
+          cp skmgr.lock before.lock
+          cp skmgr.yml before.yml
+
+          "$BIN" update --latest --dry-run | grep -qi 'v2.0.0'
+          "$BIN" remove tool --dry-run | grep -q 'remove'
+          "$BIN" sync --dry-run >/dev/null
+
+          diff before.lock skmgr.lock
+          diff before.yml skmgr.yml
+          test -d .agents/skills/tool
+
+          # An up-to-date project has nothing to report.
+          "$BIN" sync
+          "$BIN" install --dry-run | grep -q 'Nothing to do'
+
+          echo "OK: --dry-run reports without writing"
+
+      - name: Doctor and tree
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BIN="$PWD/skmgr-bin"
+          cd sv
+
+          "$BIN" doctor
+          "$BIN" doctor --json | grep -q '"name": *"git"'
+          "$BIN" tree | grep -q 'tool'
+          "$BIN" tree --json | grep -q '"scope": *"project"'
+
+          # A modified install must fail doctor with the drift exit code.
+          echo "tampered" >> .agents/skills/tool/SKILL.md
+          set +e
+          "$BIN" doctor
+          status=$?
+          set -e
+          if [ "$status" -ne 3 ]; then
+            echo "FAIL: doctor exited $status, expected 3 for drift"
+            exit 1
+          fi
+
+          "$BIN" sync
+          "$BIN" doctor
+
+          echo "OK: doctor and tree report accurately"
+
+      # A completion script that does not parse breaks the user's shell, and
+      # the failure only shows up when they open a new one.
+      - name: Completion generation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BIN="$PWD/skmgr-bin"
+
+          for shell_name in bash zsh fish powershell; do
+            "$BIN" completion "$shell_name" > "completion.$shell_name"
+            test -s "completion.$shell_name"
+          done
+
+          # bash can check its own script without sourcing it.
+          bash -n completion.bash
+
+          if "$BIN" completion tcsh 2>/dev/null; then
+            echo "FAIL: an unsupported shell should be rejected"
+            exit 1
+          fi
+
+          go run ./scripts/gen-dist -out "$RUNNER_TEMP/extras"
+          test -s "$RUNNER_TEMP/extras/man/skmgr.1"
+          test -s "$RUNNER_TEMP/extras/completions/skmgr.zsh"
+
+          echo "OK: completions and man pages generate"
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          file: ./coverage.out
+          fail_ci_if_error: false
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Download dependencies
+        run: go mod download
+      - name: Build Binary
+        run: go build -o skmgr .
+      - name: Smoke Test
+        run: ./skmgr --version
+
+  # The release config is only exercised when a tag is pushed, which is the
+  # worst moment to discover it is broken. Check it on every commit instead.
+  release-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Validate GoReleaser config
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          # Pin a v2 minor so a new GoReleaser release cannot turn deprecation
+          # warnings into a red CI on an unrelated PR.
+          version: '~> v2.17'
+          args: check
+
+      # Build a snapshot so the generation hook, the archive contents and the
+      # packaging all run without needing a tag.
+      - name: Build a snapshot release
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2.17'
+          args: release --snapshot --clean --skip=publish
+
+      - name: Extras are in the archive
+        run: |
+          set -euo pipefail
+
+          archive=$(ls dist/*_Linux_x86_64.tar.gz)
+          contents=$(tar -tzf "$archive")
+
+          for entry in \
+            completions/skmgr.bash \
+            completions/skmgr.zsh \
+            completions/skmgr.fish \
+            man/skmgr.1 \
+            schemas/skmgr.schema.json \
+            README.md \
+            LICENSE
+          do
+            if ! echo "$contents" | grep -qx "$entry"; then
+              echo "FAIL: $entry is missing from $archive"
+              echo "$contents"
+              exit 1
+            fi
+          done
+
+          echo "OK: completions, man pages and the schema ship with the release"

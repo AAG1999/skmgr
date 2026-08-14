@@ -1,0 +1,45 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/skmgr
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# End-to-end testing temporary directory
+e2e-test/
+
+# Release artifacts. dist/ is GoReleaser's; extras/ holds the generated
+# completions and man pages it packages.
+dist/
+extras/
+
+# Local planning / gap trackers (product docs live under docs/)
+/gaps.md
+/gap-fixed.md
+
+# OS & IDE specific files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project install artifacts that tools may create locally
+.skmgr/
+
+# Keep these under version control when present:
+#   .agents/     — canonical skill/rule store
+#   skmgr.lock   — reproducible installs
+#   docs/        — architecture, flows, and reference

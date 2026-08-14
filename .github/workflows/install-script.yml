@@ -1,0 +1,130 @@
+name: Install Script Test
+
+on:
+  push:
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/install.ps1'
+      - '.github/workflows/install-script.yml'
+  pull_request:
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/install.ps1'
+      - '.github/workflows/install-script.yml'
+  workflow_dispatch:
+
+jobs:
+  test-install-sh:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check install.sh syntax
+        run: |
+          chmod +x scripts/install.sh
+          # Mock the curl download to prevent failure when release doesn't exist
+          sed -i.bak 's/curl -L -o skmgr.tar.gz.*/echo "mocked" > skmgr.tar.gz/' scripts/install.sh
+          bash -n scripts/install.sh
+
+  test-install-ps1:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Check install.ps1 syntax
+        shell: pwsh
+        run: |
+          $errors = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+            "$PWD/scripts/install.ps1",
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors) {
+            $errors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+          Write-Host "OK: install.ps1 parsed cleanly"
+
+      - name: Run install.ps1 against a local zip
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          go build -o skmgr.exe .
+          if (-not (Test-Path skmgr.exe)) {
+            throw "go build did not produce skmgr.exe"
+          }
+
+          $Zip = Join-Path $PWD "skmgr-test.zip"
+          if (Test-Path $Zip) { Remove-Item $Zip -Force }
+          Compress-Archive -Path skmgr.exe -DestinationPath $Zip
+
+          $InstallDir = Join-Path $env:RUNNER_TEMP "skmgr-install-test"
+          if (Test-Path $InstallDir) { Remove-Item $InstallDir -Recurse -Force }
+
+          $env:SKMGR_ZIP_PATH = $Zip
+          $env:SKMGR_INSTALL_DIR = $InstallDir
+          $env:SKMGR_SKIP_PATH = "1"
+
+          & "$PWD/scripts/install.ps1"
+
+          $Installed = Join-Path $InstallDir "skmgr.exe"
+          if (-not (Test-Path $Installed)) {
+            throw "install.ps1 did not place skmgr.exe in $InstallDir"
+          }
+
+          $ver = & $Installed --version
+          if (-not $ver) {
+            throw "installed binary did not print a version"
+          }
+          Write-Host "OK: mocked Windows install -> $ver"
+
+      - name: Reject empty zip and install-dir-inside-temp
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          # Empty zip (no skmgr.exe) must fail clearly.
+          $EmptyZip = Join-Path $env:RUNNER_TEMP "skmgr-empty.zip"
+          $EmptyDir = Join-Path $env:RUNNER_TEMP "skmgr-empty-src"
+          New-Item -ItemType Directory -Path $EmptyDir -Force | Out-Null
+          Set-Content -Path (Join-Path $EmptyDir "README.txt") -Value "no binary"
+          if (Test-Path $EmptyZip) { Remove-Item $EmptyZip -Force }
+          Compress-Archive -Path (Join-Path $EmptyDir "*") -DestinationPath $EmptyZip
+
+          $env:SKMGR_ZIP_PATH = $EmptyZip
+          $env:SKMGR_INSTALL_DIR = (Join-Path $env:RUNNER_TEMP "skmgr-empty-install")
+          $env:SKMGR_SKIP_PATH = "1"
+          $failed = $false
+          try {
+            & "$PWD/scripts/install.ps1"
+          } catch {
+            $failed = $true
+            if ($_.Exception.Message -notmatch "skmgr\.exe not found") {
+              throw "expected missing-exe error, got: $($_.Exception.Message)"
+            }
+          }
+          if (-not $failed) {
+            throw "install.ps1 should have failed on an empty zip"
+          }
+          Write-Host "OK: empty zip rejected"
+
+          # Missing SKMGR_ZIP_PATH must fail.
+          $env:SKMGR_ZIP_PATH = (Join-Path $env:RUNNER_TEMP "does-not-exist.zip")
+          $failed = $false
+          try {
+            & "$PWD/scripts/install.ps1"
+          } catch {
+            $failed = $true
+          }
+          if (-not $failed) {
+            throw "install.ps1 should have failed on a missing zip"
+          }
+          Write-Host "OK: missing zip rejected"
