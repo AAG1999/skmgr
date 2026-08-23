@@ -41,7 +41,7 @@ irm https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.ps1 | i
 ```text
 Install skmgr (https://github.com/AAG1999/skmgr) on this machine.
 
-Detect OS/arch yourself (Linux, macOS, Windows, or WSL). If `skmgr --version` already works, report it and stop.
+Detect OS/arch yourself (Linux, macOS, Windows, or WSL). If `skmgr --version` already works, check installed version, check latest version and try to update by following instructions.
 
 Install with the first method that works:
 - macOS: `brew install AAG1999/tap/skmgr`, else `curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh`

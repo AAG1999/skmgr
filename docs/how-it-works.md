@@ -67,6 +67,8 @@ How to get the `skmgr` binary itself is covered in the [README](../README.md#ins
 | Linux / macOS | `curl -fsSL …/scripts/install.sh \| sh` |
 | Windows (PowerShell) | `irm …/scripts/install.ps1 \| iex` |
 
+The Linux/macOS script installs to `/usr/local/bin` by default. If that directory is not writable (e.g., on macOS without `sudo`), it gracefully falls back to `~/.local/bin` (make sure this is in your `PATH`).
+
 The Windows script installs to `%LOCALAPPDATA%\skmgr` and adds that folder to your user `PATH`. After that, `skmgr self-update` can keep the binary current.
 
 ## Windows
