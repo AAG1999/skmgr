@@ -18,12 +18,12 @@ jobs:
         run: go mod download
       # Pinned to a v2 minor: the config is v2 format, and an unpinned version
       # turns an upstream release into a broken build on an unrelated PR.
-      # v2.9+ is required once CI's go-version: stable is Go 1.26 — older
-      # golangci-lint binaries were built with Go 1.24 and panic on 1.26 stdlib.
+      # v2.13+ is required once CI's go-version: stable is Go 1.27 — older
+      # golangci-lint binaries were built with Go 1.26 and fail to parse 1.27 stdlib.
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.12
+          version: v2.13
           args: --timeout=5m
 
   test:
