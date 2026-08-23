@@ -51,7 +51,7 @@ chmod +x skmgr
 
 INSTALL_DIR="/usr/local/bin"
 if [ ! -w "$INSTALL_DIR" ]; then
-    echo "Installing to $HOME/.local/bin instead of $INSTALL_DIR (requires root)"
+    echo "Notice: $INSTALL_DIR is not writable. Falling back to $HOME/.local/bin"
     INSTALL_DIR="$HOME/.local/bin"
     mkdir -p "$INSTALL_DIR"
 fi
@@ -59,4 +59,10 @@ fi
 mv skmgr "$INSTALL_DIR/skmgr"
 
 echo "skmgr installed successfully to $INSTALL_DIR/skmgr"
+
+case ":$PATH:" in
+    *":$INSTALL_DIR:"*) ;;
+    *) echo "Warning: $INSTALL_DIR is not in your PATH. You must add it to run skmgr globally." ;;
+esac
+
 "$INSTALL_DIR/skmgr" --version
