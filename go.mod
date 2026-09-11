@@ -1,13 +1,13 @@
 module github.com/AAG1999/skmgr
 
-go 1.22.0
+go 1.26.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
 	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/sys v0.22.0
+	golang.org/x/sys v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
