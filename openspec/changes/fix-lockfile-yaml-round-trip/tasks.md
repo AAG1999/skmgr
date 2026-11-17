@@ -11,6 +11,10 @@
 
 - [x] 2.1 Run `go test ./internal/lockfile/ -count=1` and confirm the package passes, including the existing write, version, and hash tests.
 
+## 3. CI lint pin
+
+- [ ] 3.1 In `.github/workflows/ci.yml`, change the lint job's `golangci-lint-action` `version` from `v2.12` to `v2.15` and rewrite the comment above it so it names the Go 1.27 toolchain instead of 1.26. Verify by running the CI `lint` job on the pushed branch and confirming the `golangci-lint` step exits 0 without the `file requires newer Go version` panic. If the step reports findings, report them with file and line instead of adding exclusions.
+
 ## Workflow follow-up
 
 - Archive the change after review.
