@@ -42,6 +42,10 @@ var lockSeeds = []string{
 	"entries:\n  - 5\n",
 	"a: &x [*x]\n",
 	"version: \"2\"\nentries:\n  - name: \"../escape\"\n    content_hash: sha256:abc\n",
+	// Nightly FuzzReadWriteRoundTrip: a folded ref whose blank line is a
+	// leading newline. Kept here so a clean run starts from the known case
+	// instead of waiting for the corpus cache to rediscover it.
+	"entries:\n- ref: >\n\n   0",
 }
 
 // FuzzRead checks that no lockfile on disk can make the reader panic, and that
