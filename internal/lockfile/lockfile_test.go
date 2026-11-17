@@ -253,6 +253,154 @@ func TestWriteAndRead(t *testing.T) {
 	}
 }
 
+func TestWrite_PreservesLeadingNewlineInRef(t *testing.T) {
+	t.Run("folded ref", func(t *testing.T) {
+		dir := t.TempDir()
+		in := filepath.Join(dir, "in.lock")
+		// The nightly fuzzer's input: a folded scalar whose blank line is a
+		// leading newline. The default encoder used to write it back as "0".
+		const raw = "entries:\n- ref: >\n\n   0"
+		if err := os.WriteFile(in, []byte(raw), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		lock, err := Read(in)
+		if err != nil {
+			t.Fatalf("Read() error: %v", err)
+		}
+		if len(lock.Entries) != 1 {
+			t.Fatalf("entries = %d, want 1", len(lock.Entries))
+		}
+		if lock.Entries[0].Ref != "\n0" {
+			t.Fatalf("Read() ref = %q, want a newline followed by 0", lock.Entries[0].Ref)
+		}
+
+		out := filepath.Join(dir, "out.lock")
+		if err := Write(out, lock); err != nil {
+			t.Fatalf("Write() error: %v", err)
+		}
+
+		again, err := Read(out)
+		if err != nil {
+			t.Fatalf("Read() after Write() error: %v", err)
+		}
+		if len(again.Entries) != 1 || again.Entries[0].Ref != "\n0" {
+			t.Fatalf("ref after round trip = %+v, want a newline followed by 0", again.Entries)
+		}
+	})
+
+	t.Run("empty optionals", func(t *testing.T) {
+		dir := t.TempDir()
+		in := filepath.Join(dir, "in.lock")
+		const raw = "version: \"2\"\nentries:\n  - name: one\n    content_hash: sha256:abc\n"
+		if err := os.WriteFile(in, []byte(raw), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		lock, err := Read(in)
+		if err != nil {
+			t.Fatalf("Read() error: %v", err)
+		}
+		out := filepath.Join(dir, "out.lock")
+		if err := Write(out, lock); err != nil {
+			t.Fatalf("Write() error: %v", err)
+		}
+		again, err := Read(out)
+		if err != nil {
+			t.Fatalf("Read() after Write() error: %v", err)
+		}
+		if len(again.Entries) != 1 {
+			t.Fatalf("entries = %d, want 1", len(again.Entries))
+		}
+		got := again.Entries[0]
+		if got.Name != "one" || got.ContentHash != "sha256:abc" {
+			t.Fatalf("entry = %+v", got)
+		}
+		if got.Source != "" || got.Path != "" || got.Ref != "" || got.ResolvedRef != "" || got.CommitSHA != "" {
+			t.Fatalf("optional fields = %+v, want them empty", got)
+		}
+	})
+}
+
+func TestWrite_KeepsPlainPins(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "skmgr.lock")
+	const sha = "0123456789abcdef0123456789abcdef01234567"
+
+	lock := &types.Lockfile{
+		Version: types.LockfileVersion,
+		Entries: []types.LockEntry{{
+			Name:        "one",
+			Source:      "https://example.com/one.git",
+			ResolvedRef: "v1.1.0",
+			CommitSHA:   sha,
+			ContentHash: "sha256:abc",
+			ResolvedAt:  "2026-01-01T00:00:00Z",
+		}},
+	}
+	if err := Write(path, lock); err != nil {
+		t.Fatalf("Write() error: %v", err)
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	if !strings.Contains(text, "resolved_ref: v1.1.0\n") {
+		t.Fatalf("resolved ref was not a plain scalar:\n%s", text)
+	}
+	if !strings.Contains(text, "commit_sha: "+sha+"\n") {
+		t.Fatalf("commit SHA was not a plain scalar:\n%s", text)
+	}
+	if !strings.Contains(text, "version: \"2\"\n") {
+		t.Fatalf("version = missing quoted 2:\n%s", text)
+	}
+	if strings.Contains(text, "resolved_ref: \"") || strings.Contains(text, "commit_sha: \"") {
+		t.Fatalf("plain pins were quoted:\n%s", text)
+	}
+}
+
+func TestWrite_DoesNotReplaceFileWhenRoundTripChangesValue(t *testing.T) {
+	lock := &types.Lockfile{
+		Version:     "2",
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Entries: []types.LockEntry{{
+			Name:        "one",
+			Ref:         "\n0",
+			ContentHash: "sha256:abc",
+			ResolvedAt:  "2026-01-01T00:00:00Z",
+		}},
+	}
+	// Same shape as a written lockfile, except the leading newline in ref is gone.
+	bad := []byte("version: \"2\"\ngenerated_at: \"2026-01-01T00:00:00Z\"\nentries:\n  - name: one\n    ref: \"0\"\n    content_hash: sha256:abc\n    resolved_at: \"2026-01-01T00:00:00Z\"\n")
+
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "skmgr.lock")
+	const previous = "version: \"1\"\nstay: true\n"
+	if err := os.WriteFile(existing, []byte(previous), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeIfUnchanged(existing, lock, bad); err == nil {
+		t.Fatal("a document that changes a field was published, want an error")
+	}
+	got, err := os.ReadFile(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != previous {
+		t.Fatalf("existing file = %q, want it unchanged", got)
+	}
+
+	missing := filepath.Join(dir, "missing.lock")
+	if err := writeIfUnchanged(missing, lock, bad); err == nil {
+		t.Fatal("a document that changes a field created a file, want an error")
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Fatalf("missing destination stat = %v, want not exist", err)
+	}
+}
+
 func TestHashDirectory(t *testing.T) {
 	dir := t.TempDir()
 

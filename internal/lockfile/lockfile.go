@@ -109,23 +109,160 @@ func Write(path string, lock *types.Lockfile) error {
 		return lock.Entries[i].Name < lock.Entries[j].Name
 	})
 
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-
-	if err := enc.Encode(lock); err != nil {
-		return fmt.Errorf("encoding lockfile to YAML: %w", err)
+	// The default encoder is what every existing lockfile was written with.
+	// Use it whenever it round-trips, so ordinary pins stay plain scalars.
+	data, err := encodeLockDocument(lock)
+	if err != nil {
+		return err
+	}
+	if !lockfileRoundTrips(lock, data) {
+		// A block scalar drops a leading newline, so a ref of "\n0" is written
+		// back as "0" and the next install checks out a different name. Quote
+		// only the strings the default style cannot preserve.
+		data, err = encodeLockDocument(faithfulFrom(lock))
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := enc.Close(); err != nil {
-		return fmt.Errorf("closing YAML encoder: %w", err)
+	return writeIfUnchanged(path, lock, data)
+}
+
+// writeIfUnchanged publishes data only when decoding it yields lock.
+//
+// The check happens before the file is replaced. A mismatch means the encoder
+// changed a field, and publishing that would repin a skill on the next read.
+// An existing file keeps its bytes; a path that was absent stays absent.
+func writeIfUnchanged(path string, lock *types.Lockfile, data []byte) error {
+	if !lockfileRoundTrips(lock, data) {
+		return fmt.Errorf("encoding lockfile to YAML: round trip changed a field")
 	}
 
-	if err := atomicfile.Write(path, buf.Bytes(), 0644); err != nil {
+	if err := atomicfile.Write(path, data, 0644); err != nil {
 		return fmt.Errorf("writing lockfile: %w", err)
 	}
 
 	return nil
+}
+
+// encodeLockDocument encodes v with the same indentation Write has always used.
+func encodeLockDocument(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+
+	if err := enc.Encode(v); err != nil {
+		return nil, fmt.Errorf("encoding lockfile to YAML: %w", err)
+	}
+	if err := enc.Close(); err != nil {
+		return nil, fmt.Errorf("closing YAML encoder: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// lockfileRoundTrips reports whether data decodes to the same version,
+// timestamp, and entries as want. Nil and empty entry lists compare equal:
+// omitempty writes both as an absent key.
+func lockfileRoundTrips(want *types.Lockfile, data []byte) bool {
+	var got types.Lockfile
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		return false
+	}
+	if got.Version != want.Version || got.GeneratedAt != want.GeneratedAt {
+		return false
+	}
+	if len(got.Entries) != len(want.Entries) {
+		return false
+	}
+	for i := range want.Entries {
+		if got.Entries[i] != want.Entries[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// faithfulLock is the second encoding of a lockfile, used only when the
+// default encoder would change a field. Each string keeps the default style
+// unless that style does not survive a read.
+type faithfulLock struct {
+	Version     string          `yaml:"version"`
+	GeneratedAt string          `yaml:"generated_at"`
+	Entries     []faithfulEntry `yaml:"entries,omitempty"`
+}
+
+type faithfulEntry struct {
+	Name        faithfulString `yaml:"name"`
+	Source      faithfulString `yaml:"source"`
+	Path        faithfulString `yaml:"path,omitempty"`
+	Ref         faithfulString `yaml:"ref,omitempty"`
+	ResolvedRef faithfulString `yaml:"resolved_ref,omitempty"`
+	CommitSHA   faithfulString `yaml:"commit_sha,omitempty"`
+	ContentHash faithfulString `yaml:"content_hash"`
+	ResolvedAt  faithfulString `yaml:"resolved_at"`
+}
+
+func faithfulFrom(lock *types.Lockfile) faithfulLock {
+	out := faithfulLock{
+		Version:     lock.Version,
+		GeneratedAt: lock.GeneratedAt,
+		Entries:     make([]faithfulEntry, len(lock.Entries)),
+	}
+	for i, entry := range lock.Entries {
+		out.Entries[i] = faithfulEntry{
+			Name:        faithfulString(entry.Name),
+			Source:      faithfulString(entry.Source),
+			Path:        faithfulString(entry.Path),
+			Ref:         faithfulString(entry.Ref),
+			ResolvedRef: faithfulString(entry.ResolvedRef),
+			CommitSHA:   faithfulString(entry.CommitSHA),
+			ContentHash: faithfulString(entry.ContentHash),
+			ResolvedAt:  faithfulString(entry.ResolvedAt),
+		}
+	}
+	return out
+}
+
+// faithfulString lets the encoder choose the style for strings it can already
+// round-trip, and double-quotes the rest. Double quotes escape a leading
+// newline as \n; a literal block scalar discards it.
+type faithfulString string
+
+func (s faithfulString) MarshalYAML() (interface{}, error) {
+	if defaultStringRoundTrips(string(s)) {
+		return string(s), nil
+	}
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   "!!str",
+		Style: yaml.DoubleQuotedStyle,
+		Value: string(s),
+	}, nil
+}
+
+// defaultStringRoundTrips reports whether a string field, nested the way a
+// lockfile field is nested, unmarshals to the same value the encoder was given.
+func defaultStringRoundTrips(s string) bool {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(struct {
+		V string `yaml:"v"`
+	}{V: s}); err != nil {
+		return false
+	}
+	if err := enc.Close(); err != nil {
+		return false
+	}
+
+	var got struct {
+		V string `yaml:"v"`
+	}
+	if err := yaml.Unmarshal(buf.Bytes(), &got); err != nil {
+		return false
+	}
+	return got.V == s
 }
 
 // HashDirectory computes a deterministic SHA-256 hash of a directory's contents.
