@@ -48,8 +48,8 @@ func TestCleanCmd_Project(t *testing.T) {
 		t.Fatalf("Clean failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, ".agents")); !os.IsNotExist(err) {
-		t.Error(".agents directory was not removed")
+	if _, err := os.Stat(agentsDir); !os.IsNotExist(err) {
+		t.Error("installed skill directory was not removed")
 	}
 
 	if _, err := os.Lstat(linkPath); !os.IsNotExist(err) {
@@ -110,8 +110,8 @@ func TestCleanCmd_All(t *testing.T) {
 		t.Fatalf("Clean failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, ".agents")); !os.IsNotExist(err) {
-		t.Error(".agents directory was not removed")
+	if _, err := os.Stat(agentsDir); !os.IsNotExist(err) {
+		t.Error("installed skill directory was not removed")
 	}
 
 	if _, err := os.Stat(cacheDir); !os.IsNotExist(err) {

@@ -65,6 +65,14 @@ applies on the next plain update.`,
 
 		e := engine.NewEngine(proj.Root, types.CacheDir())
 
+		var plan *engine.Plan
+		if jsonOutput {
+			plan, err = e.Plan(proj.Manifest, proj.Lock, opts)
+			if err != nil {
+				return err
+			}
+		}
+
 		if len(args) > 0 {
 			log.Debugf("updating only: %s", strings.Join(args, ", "))
 		}
@@ -76,6 +84,10 @@ applies on the next plain update.`,
 
 		if err := lockfile.Write(proj.LockPath, newLock); err != nil {
 			return fmt.Errorf("writing lockfile: %w", err)
+		}
+
+		if jsonOutput {
+			return presentPlan(cmd, false, plan)
 		}
 
 		reportUpdated(proj.Lock, newLock, args)
@@ -134,5 +146,6 @@ func init() {
 	updateCmd.Flags().BoolVar(&updateLatest, "latest", false,
 		"Take the newest release tag even if it falls outside the declared range")
 	dryRunFlag(updateCmd, &updateDryRun, "the update")
+	jsonFlag(updateCmd)
 	rootCmd.AddCommand(updateCmd)
 }

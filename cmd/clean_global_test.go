@@ -55,8 +55,8 @@ skills:
 		t.Fatalf("clean --global failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(home, ".agents")); !os.IsNotExist(err) {
-		t.Error("clean --global should have removed ~/.agents")
+	if _, err := os.Stat(canonical); !os.IsNotExist(err) {
+		t.Error("clean --global should have removed the installed skill")
 	}
 
 	ledger, err := lockfile.ReadGlobalLedger(lockfile.GlobalLedgerPath(types.SkmgrHome()))

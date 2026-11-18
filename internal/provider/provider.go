@@ -33,6 +33,10 @@ type FetchResult struct {
 	// a literal ref, since there is nothing to record beyond what it already
 	// says.
 	ResolvedRef string
+
+	// Root is the directory SourceDirs are inside: the cached commit tree for
+	// git, or the local source directory. Discover reports paths relative to it.
+	Root string
 }
 
 // FetchOptions tunes how a provider obtains a source.

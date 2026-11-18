@@ -106,6 +106,9 @@ func assertUsableSkill(t *testing.T, index int, skill types.SkillDependency, dat
 	if err := types.ValidateName(skill.Name); err != nil {
 		t.Fatalf("skills[%d] has an unusable name %q: %v (input %q)", index, skill.Name, err, data)
 	}
+	if types.IsReservedWorkflowName(skill.Name) {
+		t.Fatalf("skills[%d] accepted reserved workflow name %q (input %q)", index, skill.Name, data)
+	}
 
 	if strings.ContainsAny(skill.Name, `/\`) {
 		t.Fatalf("skills[%d] name %q contains a path separator (input %q)", index, skill.Name, data)

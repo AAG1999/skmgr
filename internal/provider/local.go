@@ -99,5 +99,6 @@ func (p *LocalProvider) Fetch(skill types.SkillDependency, cacheDir string, opts
 	return FetchResult{
 		SourceDirs: sourceDirs,
 		CommitSHA:  "",
+		Root:       basePath,
 	}, nil
 }

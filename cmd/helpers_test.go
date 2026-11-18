@@ -93,6 +93,13 @@ func resetCommandFlags(t *testing.T) {
 	doctorJSON, treeJSON = false, false
 	addDryRun, installDryRun, syncDryRun = false, false, false
 	updateDryRun, removeDryRun = false, false
+	jsonOutput = false
+	initTargets = nil
+	initDryRun, initForce = false, false
+	initTerminal = stdinIsTTY
+	initReader = nil
+	discoverRef, discoverPath = "", ""
+	discoverOffline = false
 
 	t.Cleanup(func() {
 		globalScope = previous.global

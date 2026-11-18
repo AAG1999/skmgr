@@ -17,6 +17,7 @@ package manifest
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,10 @@ import (
 	"github.com/AAG1999/skmgr/internal/types"
 	yaml "gopkg.in/yaml.v3"
 )
+
+// ErrNotFound is returned by FindManifestPath when neither manifest spelling
+// is in the directory. Callers classify it without matching the sentence.
+var ErrNotFound = errors.New("no manifest found")
 
 // ManifestFilenames are the accepted manifest filenames, in priority order.
 var ManifestFilenames = []string{"skmgr.yml", "skmgr.yaml"}
@@ -39,7 +44,7 @@ func FindManifestPath(dir string) (string, error) {
 			return path, nil
 		}
 	}
-	return "", fmt.Errorf("no manifest found in %s (expected %s)", dir, strings.Join(ManifestFilenames, " or "))
+	return "", fmt.Errorf("%w in %s (expected %s)", ErrNotFound, dir, strings.Join(ManifestFilenames, " or "))
 }
 
 // Parse reads and validates a manifest from the given file path.
@@ -167,6 +172,11 @@ func validate(m *types.Manifest, loc *locations) error {
 		if skill.Name != "" {
 			if err := types.ValidateName(skill.Name); err != nil {
 				return at(loc.skillKeyLine(i, "name"), "skills[%d]: %v", i, err)
+			}
+			if types.IsReservedWorkflowName(skill.Name) {
+				return at(loc.skillKeyLine(i, "name"),
+					"skills[%d]: name %q is reserved for an skmgr workflow skill; set a different 'name:'",
+					i, skill.Name)
 			}
 
 			key := strings.ToLower(skill.Name)

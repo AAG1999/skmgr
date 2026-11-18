@@ -69,6 +69,10 @@ func runDoctorJSON(t *testing.T) ([]checkResult, error) {
 
 func TestDoctor_HealthyProject(t *testing.T) {
 	installOneSkill(t, "greeter")
+	initTargets = []string{"cursor"}
+	if err := initCmd.RunE(initCmd, nil); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
 
 	output, err := runDoctor(t)
 	if err != nil {
@@ -158,8 +162,7 @@ func TestDoctor_WarnsWithoutALockfile(t *testing.T) {
 	source := newSkillSource(t, "greeter")
 	writeManifest(t, "skmgr.yml", `version: "1"
 name: test
-targets:
-  - cursor
+targets: []
 skills:
   - source: file://`+source+`
     path: skills/greeter

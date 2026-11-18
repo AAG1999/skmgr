@@ -62,6 +62,14 @@ type AgentDef struct {
 	// the .agents/ directory at the given scope, meaning no symlink
 	// is needed for skills.
 	ReadsFromAgents func(scope string) bool
+
+	// CommandFile is the project-relative path of the slash command for an
+	// action id such as "find". Nil when the agent has no command layout.
+	CommandFile func(id string) string
+
+	// CommandInvocation is what the user types for that action, such as
+	// "/skm-find" or "/skm:find".
+	CommandInvocation func(id string) string
 }
 
 // scopeRoot returns the filesystem root an agent's directories hang off for the
@@ -93,6 +101,12 @@ func SupportedAgentNames() []string {
 	return []string{"cursor", "gemini", "claude-code", "copilot"}
 }
 
+// IsValidAgent reports whether name is one of the built-in agents.
+func IsValidAgent(name string) bool {
+	_, ok := DefaultAgents()[name]
+	return ok
+}
+
 func cursorAgent() AgentDef {
 	return AgentDef{
 		Name: "cursor",
@@ -108,6 +122,10 @@ func cursorAgent() AgentDef {
 		ReadsFromAgents: func(_ string) bool {
 			return false
 		},
+		CommandFile: func(id string) string {
+			return filepath.Join(".cursor", "commands", "skm-"+id+".md")
+		},
+		CommandInvocation: func(id string) string { return "/skm-" + id },
 	}
 }
 
@@ -137,6 +155,10 @@ func geminiAgent() AgentDef {
 		ReadsFromAgents: func(scope string) bool {
 			return scope == ScopeProject
 		},
+		CommandFile: func(id string) string {
+			return filepath.Join(".gemini", "commands", "skm", id+".toml")
+		},
+		CommandInvocation: func(id string) string { return "/skm:" + id },
 	}
 }
 
@@ -155,6 +177,10 @@ func claudeCodeAgent() AgentDef {
 		ReadsFromAgents: func(_ string) bool {
 			return false
 		},
+		CommandFile: func(id string) string {
+			return filepath.Join(".claude", "commands", "skm", id+".md")
+		},
+		CommandInvocation: func(id string) string { return "/skm:" + id },
 	}
 }
 
@@ -173,7 +199,33 @@ func copilotAgent() AgentDef {
 		ReadsFromAgents: func(_ string) bool {
 			return false
 		},
+		CommandFile: func(id string) string {
+			return filepath.Join(".github", "prompts", "skm-"+id+".prompt.md")
+		},
+		CommandInvocation: func(id string) string { return "/skm-" + id },
 	}
+}
+
+// ReservedWorkflowNames are the skill directory names skmgr generates for its
+// own chat workflow. A manifest may not install a dependency under one of
+// them, and cleanup must not delete them.
+func ReservedWorkflowNames() []string {
+	return []string{
+		"skmgr-find-skill",
+		"skmgr-install-skill",
+		"skmgr-update-skill",
+		"skmgr-remove-skill",
+	}
+}
+
+// IsReservedWorkflowName reports whether name is one of ReservedWorkflowNames.
+func IsReservedWorkflowName(name string) bool {
+	for _, reserved := range ReservedWorkflowNames() {
+		if name == reserved {
+			return true
+		}
+	}
+	return false
 }
 
 // CanonicalDir returns the canonical .agents/ directory path where
