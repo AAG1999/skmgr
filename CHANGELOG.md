@@ -10,7 +10,7 @@ called out explicitly below.
 
 ### Added
 
-- **Chat workflow.** `skmgr init` asks which of Cursor, Gemini, Claude Code, and Copilot to set up (or takes `--targets`) and writes four skills — find, install, update, and remove — plus a matching slash command for each. Restart the IDE, then use `/skmgr-find-skill`. `skmgr update` still re-resolves refs and rewrites `skmgr.lock`; run `skmgr init` again to refresh the workflow files.
+- **Chat workflow.** `skmgr init` asks which of Cursor, Gemini, Claude Code, and Copilot to set up (or takes `--targets`) and writes five skills — find, install, update, remove, and create — plus a matching slash command for each. Restart the IDE, then use `/skmgr-find-skill`. `/skmgr-create-skill` asks four batches of questions, then writes a skill the way Anthropic's skill creator does, and does not add it to `skmgr.yml`. `skmgr update` still re-resolves refs and rewrites `skmgr.lock`; run `skmgr init` again to refresh the workflow files.
 - **`skmgr discover <source>`.** Lists the skills and rules in one repository, including path, type, description, and resolved ref, without changing the project.
 - **`--json` on mutating commands.** `init`, `add`, `remove`, `install`, `sync`, `update`, `clean`, `discover`, and their dry runs print one JSON document. Failures use `{"error":{"code","message","fix"}}`.
 - **Windows one-liner installer.** `scripts/install.ps1` downloads the latest

@@ -1,6 +1,6 @@
 # skmgr:generated
-# revision: 1
-# hash: 1517e7c829ff41b2976366bd41eec8755ff8a889ed67ac8b94d533508319dcf6
+# revision: 2
+# hash: 692c7ec8e0c923a59453a2092361cb277d3a2a82edce3caf255e67b362f62f07
 description = "Remove a skill from skmgr.yml and from the agents after you confirm."
 
 prompt = """

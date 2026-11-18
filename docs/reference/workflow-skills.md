@@ -12,17 +12,18 @@ The only project file you maintain is `skmgr.yml`. `skmgr.lock` is written by th
 | `/skmgr-install-skill` | Creates `skmgr.yml` with `skmgr init --targets` when it is missing, shows `skmgr add --dry-run`, and installs after you confirm. |
 | `/skmgr-update-skill` | Runs `skmgr update` for every skill, or only the names you give. `--latest` is used only when you ask to leave the declared range. It does not refresh workflow files. |
 | `/skmgr-remove-skill` | Shows `skmgr remove --dry-run` and removes the skill after you confirm. |
+| `/skmgr-create-skill` | Asks four batches of questions, then writes a new skill the way Anthropic's skill creator does. It does not add the skill to `skmgr.yml`. |
 
 ## Slash commands
 
 The slash command carries the same instructions under a shorter name, so the picker does not list one action twice.
 
-| Agent | Find | Install | Update | Remove |
-|-------|------|---------|--------|--------|
-| Cursor | `/skm-find` | `/skm-install` | `/skm-update` | `/skm-remove` |
-| Copilot | `/skm-find` | `/skm-install` | `/skm-update` | `/skm-remove` |
-| Claude Code | `/skm:find` | `/skm:install` | `/skm:update` | `/skm:remove` |
-| Gemini | `/skm:find` | `/skm:install` | `/skm:update` | `/skm:remove` |
+| Agent | Find | Install | Update | Remove | Create |
+|-------|------|---------|--------|--------|--------|
+| Cursor | `/skm-find` | `/skm-install` | `/skm-update` | `/skm-remove` | `/skm-create` |
+| Copilot | `/skm-find` | `/skm-install` | `/skm-update` | `/skm-remove` | `/skm-create` |
+| Claude Code | `/skm:find` | `/skm:install` | `/skm:update` | `/skm:remove` | `/skm:create` |
+| Gemini | `/skm:find` | `/skm:install` | `/skm:update` | `/skm:remove` | `/skm:create` |
 
 Cursor commands live in `.cursor/commands/skm-find.md`. Claude Code uses `.claude/commands/skm/find.md`. Gemini uses `.gemini/commands/skm/find.toml`. Copilot uses `.github/prompts/skm-find.prompt.md`. Skills use the same pattern: `.cursor/skills/skmgr-find-skill/SKILL.md`, `.claude/skills/`, `.github/skills/`, and `.agents/skills/` for Gemini.
 

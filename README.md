@@ -48,10 +48,11 @@ Getting started
   /skmgr-install-skill
   /skmgr-update-skill
   /skmgr-remove-skill
+  /skmgr-create-skill
 Restart your IDE to refresh skills.
 ```
 
-After the restart, `/skmgr-find-skill` searches for a skill, `/skmgr-install-skill` adds it to `skmgr.yml`, `/skmgr-update-skill` re-resolves refs, and `/skmgr-remove-skill` removes one. The same actions are available as shorter slash commands (`/skm-find` in Cursor and Copilot, `/skm:find` in Claude Code and Gemini).
+After the restart, `/skmgr-find-skill` searches for a skill, `/skmgr-install-skill` adds it to `skmgr.yml`, `/skmgr-update-skill` re-resolves refs, `/skmgr-remove-skill` removes one, and `/skmgr-create-skill` interviews you and writes a new skill. The same actions are available as shorter slash commands (`/skm-find` in Cursor and Copilot, `/skm:find` in Claude Code and Gemini).
 
 The CLI stays available for terminals and CI:
 

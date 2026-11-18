@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,7 +105,7 @@ func TestInit_PrintsGettingStarted(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := out.String()
-	for _, name := range []string{"/skmgr-find-skill", "/skmgr-install-skill", "/skmgr-update-skill", "/skmgr-remove-skill"} {
+	for _, name := range []string{"/skmgr-find-skill", "/skmgr-install-skill", "/skmgr-update-skill", "/skmgr-remove-skill", "/skmgr-create-skill"} {
 		if !strings.Contains(text, name) {
 			t.Errorf("missing %s in %s", name, text)
 		}
@@ -219,7 +220,7 @@ func TestDoctor_WorkflowStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stale := strings.Replace(string(body), "revision: 1", "revision: 0", 1)
+	stale := strings.Replace(string(body), fmt.Sprintf("revision: %d", workflow.TemplateRevision), "revision: 0", 1)
 	if err := os.WriteFile(skill, []byte(workflow.Restamp(stale)), 0644); err != nil {
 		t.Fatal(err)
 	}
