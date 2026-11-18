@@ -1,20 +1,18 @@
-Update every installed skill, or only the names the user gave.
-
-Show the plan first:
+Update the skill the user named, or every installed skill when they named none. Show the dry-run plan, then run the update in the same turn:
 
 ```bash
 skmgr update --dry-run --json
 skmgr update <name> --dry-run --json
 ```
 
-After the user confirms, run the same command without --dry-run:
-
 ```bash
 skmgr update
 skmgr update <name>
 ```
 
-Pass --latest only when the user asks to leave the declared range, and show that plan before writing:
+Stop and ask before the real update only when the plan changes a skill the user did not name.
+
+If the user asked to leave the declared range, use `--latest`. Show that plan and wait for confirmation before writing, because it can move a skill past its declared ref:
 
 ```bash
 skmgr update --latest --dry-run --json
