@@ -220,6 +220,16 @@ Each agent is an `AgentDef` with:
 
 Built-in agents: `cursor`, `gemini`, `claude-code`, `copilot`.
 
+## Workflow files
+
+`skmgr init` writes four skills and a matching slash command into each selected agent. The files are ordinary files, not links, so a project can commit them. Each one carries `generated: skmgr` (or `# skmgr:generated` in a Gemini command), a template revision, and a SHA-256 of the file with the hash line emptied. Init overwrites a file only when that hash still matches. `--force` overwrites a file you edited. A file with no marker is left alone.
+
+Dropping an agent deletes that agent's generated files that still match the hash. Edited files, unmarked files, and anything else under `.github/` or `.claude/` stay.
+
+The generated skill names `skmgr-find-skill`, `skmgr-install-skill`, `skmgr-update-skill`, and `skmgr-remove-skill` are reserved. The manifest parser rejects them, orphan cleanup skips them, and `skmgr clean` deletes other children of `.agents/` without removing those directories. Gemini's project skills live in `.agents/skills/`, which is why clean cannot delete the whole tree.
+
+`doctor` fails, with exit status 3, when a selected agent's workflow file is missing or carries an older template revision. The remedy is to run `skmgr init` again. An edited file is not a failure.
+
 ## Scopes
 
 | Scope | Canonical root | Agent views |

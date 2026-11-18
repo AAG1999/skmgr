@@ -21,4 +21,17 @@ Paths below are for project scope. Under `scope: global` the same layout is root
 
 Gemini already reads the canonical `.agents/` store at project scope, so `skmgr` creates no links for it there.
 
+## Chat commands
+
+`skmgr init` writes a skill and a slash command for find, install, update, and remove. Skills are invoked as `/skmgr-find-skill` and the same pattern for the other three. Slash commands use a shorter name so the picker does not list the same action twice.
+
+| Agent | Skill directory | Slash command file | Invocation |
+|-------|-----------------|--------------------|------------|
+| `cursor` | `.cursor/skills/skmgr-find-skill/` | `.cursor/commands/skm-find.md` | `/skm-find` |
+| `claude-code` | `.claude/skills/skmgr-find-skill/` | `.claude/commands/skm/find.md` | `/skm:find` |
+| `gemini` | `.agents/skills/skmgr-find-skill/` | `.gemini/commands/skm/find.toml` | `/skm:find` |
+| `copilot` | `.github/skills/skmgr-find-skill/` | `.github/prompts/skm-find.prompt.md` | `/skm-find` |
+
+Install, update, and remove use the same paths with those words in place of `find`. See [workflow-skills.md](workflow-skills.md).
+
 New agents can be added by defining an `AgentDef` in the registry. See [CONTRIBUTING.md](../../CONTRIBUTING.md).

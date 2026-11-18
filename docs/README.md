@@ -8,6 +8,7 @@
 | [reference/manifest.md](reference/manifest.md) | Manifest fields, versioning, lockfile |
 | [reference/cli.md](reference/cli.md) | Commands, flags, exit codes, config |
 | [reference/agents.md](reference/agents.md) | Skills vs rules, agent path matrix |
+| [reference/workflow-skills.md](reference/workflow-skills.md) | Chat skills and slash commands |
 | [reference/config.md](reference/config.md) | Config file keys |
 | [reference/env-vars.md](reference/env-vars.md) | Environment variables |
 | [reference/exit-codes.md](reference/exit-codes.md) | Exit codes for CI |

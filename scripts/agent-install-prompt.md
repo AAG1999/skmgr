@@ -54,5 +54,5 @@ Detect the current OS and architecture, install the `skmgr` CLI if it is missing
    - Do not use `sudo` on Windows; on Unix only use it when a system package install requires it.
    - Do not modify global git config or credentials.
    - If the chosen method fails, try the next method and report what failed.
-   - When done, give me the exact command(s) you ran and how to install skills next:
-     `skmgr init` → `skmgr add <source>` → `skmgr install`.
+   - When done, give me the exact command(s) you ran and how to continue:
+     `skmgr init`, restart the IDE, then `/skmgr-find-skill`. Ref bumps stay `skmgr update` (or `/skmgr-update-skill`).
