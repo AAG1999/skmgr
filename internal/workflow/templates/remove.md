@@ -1,12 +1,10 @@
-Remove the skill the user named. If they named none and more than one is installed, ask which one. List them with:
+Remove the skill the user named. If they named none and more than one is installed, list them with `skmgr list --json` and ask which one.
 
-```bash
-skmgr list --json
-```
-
-Show the plan, then remove only after the user confirms:
+Show the dry-run plan, then remove in the same turn:
 
 ```bash
 skmgr remove <name> --dry-run --json
 skmgr remove <name>
 ```
+
+Stop and ask before the real remove only when the plan removes anything besides the named skill.
