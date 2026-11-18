@@ -20,43 +20,19 @@ Declare AI agent skills and rules in a `skmgr.yml` manifest, lock them to git co
 
 ## Install
 
+Install skmgr. On macOS or Linux, in your terminal:
+
 ```bash
-# macOS
-brew install AAG1999/tap/skmgr
-
-# curl | sh (Linux / macOS)
 curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh
-
-# Go 1.22+
-go install github.com/AAG1999/skmgr@latest
 ```
 
+On Windows, in PowerShell:
+
 ```powershell
-# PowerShell (Windows)
 irm https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.ps1 | iex
 ```
 
-**Ask an AI agent to install it** (copy-paste):
-
-```text
-Install skmgr (https://github.com/AAG1999/skmgr) on this machine.
-
-Detect OS/arch yourself (Linux, macOS, Windows, or WSL). If `skmgr --version` already works, report it and stop.
-
-Install with the first method that works:
-- macOS: `brew install AAG1999/tap/skmgr`, else `curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh`
-- Linux: `install.sh` one-liner
-- Windows PowerShell: `irm https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.ps1 | iex` (refresh PATH afterward)
-- WSL: treat as Linux, not Windows
-- Fallback: `go install github.com/AAG1999/skmgr@latest` (Go 1.22+)
-
-Verify with `skmgr --version`. Warn if `git` is missing. Do not invent URLs. Show the commands you ran.
-```
-
-Full agent prompt: [`scripts/agent-install-prompt.md`](scripts/agent-install-prompt.md).
-
-
-Pre-built binaries: [Releases](https://github.com/AAG1999/skmgr/releases).
+An agent can do this for you. The prompt is [`scripts/agent-install-prompt.md`](scripts/agent-install-prompt.md).
 
 ## Quickstart
 
