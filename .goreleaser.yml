@@ -71,33 +71,6 @@ changelog:
       - '^docs:'
       - '^test:'
 
-# Formulae that install prebuilt binaries are deprecated; casks are the
-# supported path. After the first cask release, delete Formula/skmgr.rb from
-# the tap and add tap_migrations.json so upgrades move to the cask.
-homebrew_casks:
-  - name: skmgr
-    repository:
-      owner: AAG1999
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/AAG1999/skmgr"
-    description: "The framework-agnostic skill manager for AI agents"
-    license: "Apache 2.0"
-    completions:
-      bash: completions/skmgr.bash
-      zsh: completions/skmgr.zsh
-      fish: completions/skmgr.fish
-    manpages:
-      - man/skmgr.1
-    hooks:
-      post:
-        # Unsigned binaries need the quarantine bit cleared or Gatekeeper
-        # refuses to run them after brew install --cask.
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/skmgr"]
-          end
-
 release:
   extra_files:
     - glob: ./scripts/install.sh
@@ -105,27 +78,3 @@ release:
     # Editors reference the schema by URL, so it is attached to the release as
     # a stable, versioned artifact rather than only living on a branch.
     - glob: ./schemas/skmgr.schema.json
-
-nfpms:
-  - id: skmgr
-    package_name: skmgr
-    homepage: "https://github.com/AAG1999/skmgr"
-    maintainer: "Abhishek Gawade <a.a.gawade1999@gmail.com>"
-    description: "The framework-agnostic skill manager for AI agents"
-    license: "Apache 2.0"
-    formats:
-      - deb
-      - rpm
-      - apk
-    bindir: /usr/bin
-    contents:
-      - src: extras/completions/skmgr.bash
-        dst: /usr/share/bash-completion/completions/skmgr
-      - src: extras/completions/skmgr.zsh
-        dst: /usr/share/zsh/site-functions/_skmgr
-      - src: extras/completions/skmgr.fish
-        dst: /usr/share/fish/vendor_completions.d/skmgr.fish
-      - src: extras/man/skmgr.1
-        dst: /usr/share/man/man1/skmgr.1
-      - src: schemas/skmgr.schema.json
-        dst: /usr/share/skmgr/skmgr.schema.json

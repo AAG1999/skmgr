@@ -22,16 +22,15 @@ called out explicitly below.
   `SKMGR_ZIP_PATH` / `SKMGR_INSTALL_DIR` / `SKMGR_SKIP_PATH` overrides support
   that without hitting the network.
 - **Agent install prompt.** `scripts/agent-install-prompt.md` is a copy-paste
-  prompt that tells an AI coding agent to detect OS/arch and install skmgr via
-  the correct one-liner or package manager.
+  prompt that tells an AI coding agent to detect OS/arch and install skmgr with
+  `install.sh` or `install.ps1`.
 
 ### Changed
 
-- **Homebrew packaging now publishes a cask** instead of a formula that
-  installed a prebuilt binary. After the next release, existing tap users may
-  need one upgrade that migrates them (delete `Formula/skmgr.rb` and add
-  `tap_migrations.json` in the tap). `brew install AAG1999/tap/skmgr`
-  keeps working once that migration is in place.
+- **Two install commands.** The README and the agent prompt now offer only
+  `scripts/install.sh` (macOS, Linux, and WSL) and `scripts/install.ps1`
+  (Windows PowerShell). The Homebrew cask and the deb, rpm, and apk packages
+  are no longer published. A Homebrew user switches to `install.sh`.
 
 ### Fixed
 
