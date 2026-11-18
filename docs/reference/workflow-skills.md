@@ -8,10 +8,12 @@ The only project file you maintain is `skmgr.yml`. `skmgr.lock` is written by th
 
 | Skill | What it does |
 |-------|----------------|
-| `/skmgr-find-skill` | Asks what you need, searches the web, and runs `skmgr discover` only after you approve a URL. It does not install. |
-| `/skmgr-install-skill` | Creates `skmgr.yml` with `skmgr init --targets` when it is missing, shows `skmgr add --dry-run`, and installs after you confirm. |
-| `/skmgr-update-skill` | Runs `skmgr update` for every skill, or only the names you give. `--latest` is used only when you ask to leave the declared range. It does not refresh workflow files. |
-| `/skmgr-remove-skill` | Shows `skmgr remove --dry-run` and removes the skill after you confirm. |
+| `/skmgr-find-skill` | Asks what you need, searches the web, and runs `skmgr discover` only on a URL you approve. If you approved it to install and it has one skill, it hands off to the install skill without asking again. |
+| `/skmgr-install-skill` | Creates `skmgr.yml` with `skmgr init --targets` when it is missing, shows the `skmgr add --dry-run` plan, and installs in the same turn. It stops only if the plan differs from what you asked for. |
+| `/skmgr-update-skill` | Shows the `skmgr update --dry-run` plan and updates in the same turn, for every skill or only the names you give. It asks first only for `--latest`, which leaves the declared range, or when the plan changes a skill you did not name. It does not refresh workflow files. |
+| `/skmgr-remove-skill` | Shows the `skmgr remove --dry-run` plan and removes the named skill in the same turn. It stops only if the plan removes anything else. |
+
+A request counts as approval for the action it names, so the skills do not ask a second time. Global scope is used only when you ask for it.
 
 ## Slash commands
 
