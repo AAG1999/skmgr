@@ -31,7 +31,7 @@ Detect the current OS and architecture, install the `skmgr` CLI if it is missing
    irm https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.ps1 | iex
    ```
 
-   Afterward, ensure the current session can see the binary (refresh `$env:Path` from the User + Machine PATH, or invoke `%LOCALAPPDATA%\skmgr\skmgr.exe` directly).
+   The installer adds `%LOCALAPPDATA%\skmgr` to the user PATH and to the PATH of the process that ran it. If you launched the script in a child PowerShell, that parent still has the old PATH: refresh it from the User + Machine PATH, or call `%LOCALAPPDATA%\skmgr\skmgr.exe` directly.
 
 3. **Verify**
    - Run `skmgr --version` and show the output.

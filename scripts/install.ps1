@@ -94,19 +94,50 @@ try {
     }
 
     if (-not $env:SKMGR_SKIP_PATH) {
-        $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-        $PathParts = @()
-        if ($UserPath) {
-            $PathParts = $UserPath -split ";" | Where-Object { $_ -ne "" }
+        # Persist the install dir on the user PATH. Read and write the registry
+        # value raw: [Environment]::SetEnvironmentVariable expands entries like
+        # %USERPROFILE%\bin and saves them that way, and it can truncate a long
+        # PATH. Writing the registry alone does not notify other processes, so
+        # a dummy user variable is set and removed to broadcast the change.
+        $regKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Environment", $true)
+        if (-not $regKey) {
+            $regKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Environment")
         }
-        $alreadyOnPath = $PathParts | Where-Object {
-            $_.TrimEnd('\') -ieq $InstallDir.TrimEnd('\')
+        try {
+            $rawUserPath = [string]$regKey.GetValue("Path", "", [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            $userEntries = @($rawUserPath -split ";" | Where-Object { $_ -ne "" })
+            $persisted = $false
+            foreach ($entry in $userEntries) {
+                $expanded = [Environment]::ExpandEnvironmentVariables($entry).TrimEnd("\")
+                if ($expanded -ieq $InstallFull.TrimEnd("\")) {
+                    $persisted = $true
+                    break
+                }
+            }
+            if (-not $persisted) {
+                $regKey.SetValue("Path", (($userEntries + $InstallFull) -join ";"), [Microsoft.Win32.RegistryValueKind]::ExpandString)
+                [Environment]::SetEnvironmentVariable("SKMGR_INSTALL_PATH_CHANGED", "1", "User")
+                [Environment]::SetEnvironmentVariable("SKMGR_INSTALL_PATH_CHANGED", $null, "User")
+                Write-Host "Added $InstallFull to your user PATH."
+            }
         }
-        if (-not $alreadyOnPath) {
-            $NewPath = ($PathParts + $InstallDir) -join ";"
-            [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
-            $env:Path = "$InstallDir;$env:Path"
-            Write-Host "Added $InstallDir to your user PATH (new shells will pick this up)."
+        finally {
+            $regKey.Close()
+        }
+
+        # The running window keeps the PATH it started with. Refresh it even
+        # when the directory was already saved, so `skmgr` works here without
+        # a restart. Other already-open terminals still need to be reopened.
+        $visibleNow = $false
+        foreach ($entry in ($env:Path -split ";")) {
+            if ($entry.TrimEnd("\") -ieq $InstallFull.TrimEnd("\")) {
+                $visibleNow = $true
+                break
+            }
+        }
+        if (-not $visibleNow) {
+            $env:Path = "$InstallFull;$env:Path"
+            Write-Host "This window can run skmgr now. Reopen any other terminal so it picks up the new PATH."
         }
     }
 

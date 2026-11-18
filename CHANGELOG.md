@@ -34,6 +34,7 @@ called out explicitly below.
 
 ### Fixed
 
+- **The Windows installer makes `skmgr` runnable in the window that ran it.** It used to update the saved user `PATH` only when `%LOCALAPPDATA%\skmgr` was missing, and it left the current PowerShell process alone when that entry was already saved. `skmgr` then failed in that same window with "not recognized". The script now refreshes the current process `PATH` on every install, writes the user `PATH` as an unexpanded registry value, and broadcasts the change so new terminals see it.
 - **Fetching a skill works on Windows.** Extracting a commit piped `git archive`
   into the `tar` binary, and the MSYS `tar` that ships with Git for Windows
   cannot open a drive-letter path, so every fetch failed with `tar: C\:\\...:
