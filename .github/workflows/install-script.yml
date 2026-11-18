@@ -128,3 +128,84 @@ jobs:
             throw "install.ps1 should have failed on a missing zip"
           }
           Write-Host "OK: missing zip rejected"
+
+      - name: User PATH and the current session both see skmgr
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $saved = [Environment]::GetEnvironmentVariable("Path", "User")
+          $InstallDir = Join-Path $env:RUNNER_TEMP "skmgr-path-test"
+          $Zip = Join-Path $PWD "skmgr-test.zip"
+          if (-not (Test-Path $Zip)) {
+            throw "expected skmgr-test.zip from the previous step"
+          }
+
+          function Restore-UserPath {
+            [Environment]::SetEnvironmentVariable("Path", $saved, "User")
+            [Environment]::SetEnvironmentVariable("SKMGR_INSTALL_PATH_CHANGED", $null, "User")
+          }
+
+          try {
+            if (Test-Path $InstallDir) { Remove-Item $InstallDir -Recurse -Force }
+            Remove-Item Env:SKMGR_SKIP_PATH -ErrorAction SilentlyContinue
+            $env:SKMGR_ZIP_PATH = $Zip
+            $env:SKMGR_INSTALL_DIR = $InstallDir
+
+            # Drop the dir from this process so the script has to put it back.
+            $env:Path = (($env:Path -split ";" | Where-Object {
+              $_.TrimEnd("\") -ine $InstallDir.TrimEnd("\")
+            }) -join ";")
+
+            & "$PWD/scripts/install.ps1"
+
+            $seen = @($env:Path -split ";" | Where-Object {
+              $_.TrimEnd("\") -ieq $InstallDir.TrimEnd("\")
+            })
+            if ($seen.Count -ne 1) {
+              throw "current process PATH should contain the install dir once, found $($seen.Count)"
+            }
+
+            $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Environment", $false)
+            try {
+              $raw = [string]$key.GetValue("Path", "", [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            } finally {
+              $key.Close()
+            }
+            $persisted = @($raw -split ";" | Where-Object {
+              [Environment]::ExpandEnvironmentVariables($_).TrimEnd("\") -ieq $InstallDir.TrimEnd("\")
+            })
+            if ($persisted.Count -ne 1) {
+              throw "user PATH should contain the install dir once, found $($persisted.Count)"
+            }
+
+            # Already persisted, missing from this process: second run must
+            # refresh the session and must not append a second entry.
+            $env:Path = (($env:Path -split ";" | Where-Object {
+              $_.TrimEnd("\") -ine $InstallDir.TrimEnd("\")
+            }) -join ";")
+            & "$PWD/scripts/install.ps1"
+
+            $seen = @($env:Path -split ";" | Where-Object {
+              $_.TrimEnd("\") -ieq $InstallDir.TrimEnd("\")
+            })
+            if ($seen.Count -ne 1) {
+              throw "second run should put the install dir back on the process PATH once, found $($seen.Count)"
+            }
+            $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Environment", $false)
+            try {
+              $raw = [string]$key.GetValue("Path", "", [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            } finally {
+              $key.Close()
+            }
+            $persisted = @($raw -split ";" | Where-Object {
+              [Environment]::ExpandEnvironmentVariables($_).TrimEnd("\") -ieq $InstallDir.TrimEnd("\")
+            })
+            if ($persisted.Count -ne 1) {
+              throw "second run duplicated the user PATH entry ($($persisted.Count))"
+            }
+            Write-Host "OK: user PATH persisted once and the current session can see skmgr"
+          }
+          finally {
+            Restore-UserPath
+          }
