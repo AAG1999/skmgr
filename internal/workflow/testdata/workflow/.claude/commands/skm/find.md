@@ -4,8 +4,8 @@ description: Find a skill for a use case. Searches the web, then skmgr discover 
 metadata:
   author: skmgr
   generated: skmgr
-  revision: 1
-  hash: 1c46d9c9ef23c5bb512c453604e58b174d42afe2364414124fe99ecb6e8f2d41
+  revision: 2
+  hash: b9df7ef5f96ce6e9476da12545f3679f3fa539203a7f7bb686ea52d31728b1dd
 ---
 
 The skmgr CLI does the work. Run it with --json. Do not resolve, hash, link, or write skmgr.lock yourself, and do not write under .agents or an agent skills directory except by running skmgr.

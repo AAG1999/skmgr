@@ -225,6 +225,39 @@ func TestTemplates_DoNotAskForAPlanOrArchive(t *testing.T) {
 	}
 }
 
+func TestTemplates_CreateInterviewsBeforeWriting(t *testing.T) {
+	body := TemplateSources()["create.md"]
+	for _, want := range []string{
+		"Anthropic's skill creator",
+		"Ask in four batches",
+		"Which phrases, file types, and contexts should trigger it?",
+		"What must it never do?",
+		"Wait for confirmation before writing a file.",
+		"Do not run skmgr add.",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("create template missing %q", want)
+		}
+	}
+	for _, banned := range []string{"skmgr add ", "skmgr update", "skmgr remove"} {
+		if strings.Contains(body, banned) {
+			t.Errorf("create template names %q", banned)
+		}
+	}
+	files, err := Render(types.DefaultAgents()["cursor"], t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if !strings.HasSuffix(file.Rel, "skmgr-create-skill/SKILL.md") {
+			continue
+		}
+		if strings.Contains(file.Content, "allowed-tools:") || strings.Contains(file.Content, "Bash(skmgr") {
+			t.Fatal("create skill should not be allowed to run skmgr")
+		}
+	}
+}
+
 func TestTemplates_DryRunPrecedesWrite(t *testing.T) {
 	for _, name := range []string{"install.md", "update.md", "remove.md"} {
 		body := TemplateSources()[name]

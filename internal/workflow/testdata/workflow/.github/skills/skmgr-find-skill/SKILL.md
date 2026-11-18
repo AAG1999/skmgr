@@ -7,8 +7,8 @@ metadata:
   author: skmgr
   version: "1"
   generated: skmgr
-  revision: 1
-  hash: 50879d51841137e2ceea5d4612289e2e177aa41166578def04fc311c7339069d
+  revision: 2
+  hash: 38f3b057e44dc7a258722e2ee83792f6f50eab9bd01192d3b06d944d65638a55
 ---
 
 The skmgr CLI does the work. Run it with --json. Do not resolve, hash, link, or write skmgr.lock yourself, and do not write under .agents or an agent skills directory except by running skmgr.

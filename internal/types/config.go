@@ -215,6 +215,7 @@ func ReservedWorkflowNames() []string {
 		"skmgr-install-skill",
 		"skmgr-update-skill",
 		"skmgr-remove-skill",
+		"skmgr-create-skill",
 	}
 }
 

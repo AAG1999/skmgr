@@ -4,8 +4,8 @@ description: Remove a skill from skmgr.yml and from the agents after you confirm
 metadata:
   author: skmgr
   generated: skmgr
-  revision: 1
-  hash: 9b1dbdf8479828b82c66ea7be6919cceebd26fd72ebff6e94f63cd9231c2f63c
+  revision: 2
+  hash: bba6786d88cd0eb00969a0e032175245e1cdfd4b507e99478b910a40102f5aa2
 ---
 
 The skmgr CLI does the work. Run it with --json. Do not resolve, hash, link, or write skmgr.lock yourself, and do not write under .agents or an agent skills directory except by running skmgr.
