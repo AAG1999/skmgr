@@ -43,3 +43,11 @@ extras/
 #   .agents/     — canonical skill/rule store
 #   skmgr.lock   — reproducible installs
 #   docs/        — architecture, flows, and reference
+.agents/skills/.openspec-target
+.agents/skills/openspec-apply-change/SKILL.md
+.agents/skills/openspec-archive-change/SKILL.md
+.agents/skills/openspec-explore/SKILL.md
+.agents/skills/openspec-propose/SKILL.md
+.agents/skills/openspec-sync-specs/SKILL.md
+.agents/skills/openspec-update-change/SKILL.md
+.agents/skills/openspec-verify-change/SKILL.md

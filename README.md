@@ -7,20 +7,28 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/AAG1999/skmgr)](https://go.dev/)
 [![License](https://img.shields.io/github/license/AAG1999/skmgr)](https://github.com/AAG1999/skmgr/blob/main/LICENSE)
 
-Declare AI agent skills and rules in a `skmgr.yml` manifest, lock them to git commits, and share them across your team. `skmgr` installs into a canonical `.agents/` store and symlinks into native agent directories — Cursor, Gemini, Claude Code, Copilot, and more.
+skmgr declares AI agent skills and rules in `skmgr.yml`, locks them to git commits, and installs them for Cursor, Gemini, Claude Code, and Copilot.
 
-## Highlights
+## See it in action
 
-- **Declarative manifest** — define skills once in `skmgr.yml`; names are derived for you
-- **Lockfile reproducibility** — pin to git SHAs with `skmgr.lock`; `--frozen` for CI, `--offline` for air-gapped runs
-- **Any git remote** — GitHub, GitLab, Bitbucket, or local `file://` paths
-- **Semver without a registry** — follow release tags with ranges like `^1.2.0`
-- **Agent-agnostic** — one install, many agents, via relative symlinks (junctions/copies on Windows)
-- **Safe by default** — crash-safe writes, tamper detection (`skmgr verify`), orphan cleanup, `--dry-run` on mutating commands
+```text
+You: skmgr init
+AI:  Which agents should skmgr manage?
+You: cursor
+AI:  Getting started
+       /skmgr-find-skill
+       /skmgr-install-skill
+       /skmgr-update-skill
+       /skmgr-remove-skill
+       /skmgr-create-skill
+     Restart your IDE to refresh skills.
+You: /skmgr-find-skill a skill that fills PDF forms
+AI:  Here are repositories that match. Which URL should I inspect?
+```
 
 ## Install
 
-Install skmgr. On macOS or Linux, in your terminal:
+On macOS or Linux, in your terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.sh | sh
@@ -34,113 +42,17 @@ irm https://raw.githubusercontent.com/AAG1999/skmgr/main/scripts/install.ps1 | i
 
 An agent can do this for you. The prompt is [`scripts/agent-install-prompt.md`](scripts/agent-install-prompt.md).
 
-## Quickstart
-
-Install the binary, then work from chat. `skmgr init` asks which agents you use (or take `--targets` in CI), writes a skill and a slash command for each of them, and asks you to restart the IDE.
-
-```bash
-skmgr init --targets cursor
-```
-
-```text
-Getting started
-  /skmgr-find-skill
-  /skmgr-install-skill
-  /skmgr-update-skill
-  /skmgr-remove-skill
-  /skmgr-create-skill
-Restart your IDE to refresh skills.
-```
-
-After the restart, `/skmgr-find-skill` searches for a skill, `/skmgr-install-skill` adds it to `skmgr.yml`, `/skmgr-update-skill` re-resolves refs, `/skmgr-remove-skill` removes one, and `/skmgr-create-skill` interviews you and writes a new skill. The same actions are available as shorter slash commands (`/skm-find` in Cursor and Copilot, `/skm:find` in Claude Code and Gemini).
-
-The CLI stays available for terminals and CI:
-
-```bash
-skmgr add https://github.com/anthropics/skills.git --path skills/frontend-design
-skmgr install
-skmgr list
-```
-
-```text
-NAME              TYPE    SCOPE     REF    STATUS      TARGETS
-frontend-design   skill   project   main   installed   cursor, gemini
-```
-
-## Manifest
-
-```yaml
-version: "1"
-name: my-agent-workspace
-
-targets:
-  - cursor
-  - gemini
-
-skills:
-  - source: https://github.com/anthropics/skills.git
-    path: skills/skill-creator
-    ref: main
-
-  - source: https://github.com/anthropics/skills.git
-    path: skills/pdf-tools
-    ref: ^1.2.0
-
-  - source: https://github.com/anthropics/skills.git
-    path: "skills/*"
-    ref: main
-```
-
-Full field reference, versioning, and lockfile details: [docs/reference/manifest.md](docs/reference/manifest.md).
-
-## Commands
-
-| Command | What it does |
-|---------|--------------|
-| `skmgr init` | Create `skmgr.yml`, `.agents/`, and the chat workflow files |
-| `skmgr discover <source>` | List the skills and rules one source offers |
-| `skmgr add` / `remove` | Add or remove a dependency |
-| `skmgr install` | Install from the manifest (`--frozen`, `--offline`) |
-| `skmgr update` / `outdated` | Re-resolve refs and rewrite `skmgr.lock`; see available updates |
-| `skmgr list` / `tree` / `verify` | Inspect status and integrity |
-| `skmgr doctor` | Diagnose the local environment |
-| `skmgr clean` / `cache` | Clean installs and prune the cache |
-
-All mutating commands support `--dry-run`. Full reference: [docs/reference/cli.md](docs/reference/cli.md).
-
-## How it works
-
-Skills are cached under `~/.skmgr/cache/`, copied into `.agents/`, then symlinked into agent directories (e.g. `.cursor/skills/`). Rules can be merged into single-file targets like `CLAUDE.md` using managed delimiters.
-
-```bash
-# CI
-skmgr install --frozen
-skmgr verify
-```
-
-Details: [docs/how-it-works.md](docs/how-it-works.md) · agent matrix: [docs/reference/agents.md](docs/reference/agents.md)
-
 ## Docs
 
-| Document | Covers |
-|----------|--------|
-| [docs/](docs/README.md) | Full documentation index |
-| [docs/how-it-works.md](docs/how-it-works.md) | Installing the CLI, symlinks, cache, Windows, CI |
-| [docs/architecture.md](docs/architecture.md) | System design |
-| [docs/flow.md](docs/flow.md) | Install / update / verify flows |
-| [docs/reference/manifest.md](docs/reference/manifest.md) | Manifest, versioning, lockfile |
-| [docs/reference/cli.md](docs/reference/cli.md) | Commands, flags, exit codes, config |
-| [docs/reference/agents.md](docs/reference/agents.md) | Skills vs rules, agent paths |
-| [docs/reference/workflow-skills.md](docs/reference/workflow-skills.md) | The four chat skills and slash commands |
-| [docs/reference/](docs/reference/config.md) | Config, env vars, exit codes, private git |
+→ **[Documentation](docs/README.md)**: the full index
+→ **[How it works](docs/how-it-works.md)**: install, symlinks, cache, Windows, CI
+→ **[Manifest](docs/reference/manifest.md)**: fields, versioning, lockfile
+→ **[CLI](docs/reference/cli.md)**: commands, flags, exit codes
+→ **[Workflow skills](docs/reference/workflow-skills.md)**: the chat skills and slash commands
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Short version:
-
-```bash
-gofmt -l . && go vet ./... && go test ./... && golangci-lint run
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short check before a change is `gofmt -l . && go vet ./... && go test ./... && golangci-lint run`.
 
 ## License
 
