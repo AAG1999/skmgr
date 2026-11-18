@@ -31,7 +31,7 @@ import (
 
 // TemplateRevision changes only when generated file content changes, so an
 // unrelated skmgr release does not rewrite files a project has committed.
-const TemplateRevision = 2
+const TemplateRevision = 3
 
 //go:embed templates/*.md
 var templateFS embed.FS
@@ -51,6 +51,7 @@ func Actions() []Action {
 		{ID: "install", SkillName: "skmgr-install-skill", Description: "Add a skill to skmgr.yml and install it after you confirm the plan.", Tools: []string{"init", "add"}},
 		{ID: "update", SkillName: "skmgr-update-skill", Description: "Re-resolve skill refs and rewrite skmgr.lock, for every skill or only the names you give.", Tools: []string{"update", "outdated"}},
 		{ID: "remove", SkillName: "skmgr-remove-skill", Description: "Remove a skill from skmgr.yml and from the agents after you confirm.", Tools: []string{"remove", "list"}},
+		{ID: "create", SkillName: "skmgr-create-skill", Description: "Interview you, then write a new skill the way Anthropic's skill creator does. Does not install.", Tools: nil},
 	}
 }
 
@@ -139,11 +140,14 @@ func Render(agent types.AgentDef, projectRoot string) ([]File, error) {
 }
 
 func skillFrontmatter(action Action) string {
+	tools := ""
+	if len(action.Tools) > 0 {
+		tools = "allowed-tools: " + toolsList(action.Tools) + "\n"
+	}
 	return fmt.Sprintf(`---
 name: %s
 description: %s
-allowed-tools: %s
-compatibility: Requires the skmgr CLI.
+%scompatibility: Requires the skmgr CLI.
 metadata:
   author: skmgr
   version: "1"
@@ -152,7 +156,7 @@ metadata:
   hash: ""
 ---
 
-`, action.SkillName, yamlEscape(action.Description), toolsList(action.Tools), TemplateRevision)
+`, action.SkillName, yamlEscape(action.Description), tools, TemplateRevision)
 }
 
 func commandFrontmatter(agent types.AgentDef, action Action) string {

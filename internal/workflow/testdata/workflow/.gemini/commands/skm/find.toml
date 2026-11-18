@@ -1,6 +1,6 @@
 # skmgr:generated
-# revision: 2
-# hash: 05fabe4e15165e0bf61a5946906b0ba933986b1457574ed65a8d0b2b631f91a7
+# revision: 3
+# hash: e583d3572f03c394bdbb22890e5f1970d27d3c4faf2cccebf2462a06e9c4ab27
 description = "Find a skill for a use case. Searches the web, then skmgr discover inspects the repository you approve. Does not install."
 
 prompt = """

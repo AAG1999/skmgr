@@ -105,7 +105,7 @@ func TestInit_PrintsGettingStarted(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := out.String()
-	for _, name := range []string{"/skmgr-find-skill", "/skmgr-install-skill", "/skmgr-update-skill", "/skmgr-remove-skill"} {
+	for _, name := range []string{"/skmgr-find-skill", "/skmgr-install-skill", "/skmgr-update-skill", "/skmgr-remove-skill", "/skmgr-create-skill"} {
 		if !strings.Contains(text, name) {
 			t.Errorf("missing %s in %s", name, text)
 		}

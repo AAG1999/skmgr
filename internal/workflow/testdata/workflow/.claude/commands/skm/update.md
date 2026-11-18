@@ -4,8 +4,8 @@ description: Re-resolve skill refs and rewrite skmgr.lock, for every skill or on
 metadata:
   author: skmgr
   generated: skmgr
-  revision: 2
-  hash: 24552e6ce4d0deb0705456f922547c059c8f384a4beec6f9fe445e5df64ab089
+  revision: 3
+  hash: da6c074fed6e5ea63788330d9db6a63cfe4a380d772a76900baaffe28d2f0965
 ---
 
 The skmgr CLI does the work. Run it with --json. Do not resolve, hash, link, or write skmgr.lock yourself, and do not write under .agents or an agent skills directory except by running skmgr.

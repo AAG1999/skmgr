@@ -44,7 +44,7 @@
 }
 ```
 
-`init --json` reports the agents you selected and what it would do to each workflow file (`add`, `change`, `delete`, or `skip`). A cursor selection lists eight files; each entry has this shape:
+`init --json` reports the agents you selected and what it would do to each workflow file (`add`, `change`, `delete`, or `skip`). A cursor selection lists ten files; each entry has this shape:
 
 ```json
 {

@@ -1,6 +1,6 @@
 # skmgr:generated
-# revision: 2
-# hash: bc6823018949d73f5548ac9170d68f8a18213887fdf83de08deb45749680ec6b
+# revision: 3
+# hash: d80c9fa2fa4ecb1fcb6976fb926a0e28dbb71c01a057a9b9e6d7ba39ebb3991b
 description = "Add a skill to skmgr.yml and install it after you confirm the plan."
 
 prompt = """

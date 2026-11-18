@@ -4,8 +4,8 @@ description: Add a skill to skmgr.yml and install it after you confirm the plan.
 metadata:
   author: skmgr
   generated: skmgr
-  revision: 2
-  hash: df1304ede73c39e9696a4524dbb1c277bf9fa05e115bce65b92a3392230a7303
+  revision: 3
+  hash: a790f5b8e3afc2b4cd520303a6ff7f5be6b74f4be5908199375f6da3aca1d97e
 ---
 
 The skmgr CLI does the work. Run it with --json. Do not resolve, hash, link, or write skmgr.lock yourself, and do not write under .agents or an agent skills directory except by running skmgr.

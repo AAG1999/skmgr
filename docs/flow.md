@@ -38,6 +38,8 @@ flowchart TD
   E --> F[Commit skmgr.yml + skmgr.lock]
 ```
 
+`/skmgr-create-skill` is the other way to get a skill: it interviews you, writes the skill directory, and leaves `skmgr.yml` alone. Hand that path to `/skmgr-install-skill` when skmgr should manage it.
+
 Typical CI path after that: `skmgr install --frozen`.
 
 ## Core Sync pipeline

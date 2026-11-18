@@ -1,6 +1,6 @@
 # skmgr:generated
-# revision: 2
-# hash: 89b5709ec70ff5fce0c5d1c51cec678752f3ec2bc2f4cbb94179dc7d039d9214
+# revision: 3
+# hash: 9f2e9c70f3f1588674ee3f5adb89687c34ef114c48a20d108413c1b6d1cdecae
 description = "Re-resolve skill refs and rewrite skmgr.lock, for every skill or only the names you give."
 
 prompt = """
