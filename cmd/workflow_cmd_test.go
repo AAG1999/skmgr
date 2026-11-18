@@ -220,7 +220,8 @@ func TestDoctor_WorkflowStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stale := strings.Replace(string(body), fmt.Sprintf("revision: %d", workflow.TemplateRevision), "revision: 0", 1)
+	current := fmt.Sprintf("revision: %d", workflow.TemplateRevision)
+	stale := strings.Replace(string(body), current, "revision: 0", 1)
 	if err := os.WriteFile(skill, []byte(workflow.Restamp(stale)), 0644); err != nil {
 		t.Fatal(err)
 	}

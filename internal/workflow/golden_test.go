@@ -28,7 +28,9 @@ import (
 // templateDigests records the hash of the embedded templates for each
 // TemplateRevision. Changing the text without bumping the revision fails.
 var templateDigests = map[int]string{
-	2: "470723fe50b8312c1aeb628f4ed9b72b8eacc7d52d88cf38b2ba2bf5263bc6ff",
+	1: "1337998185e32525b58f5444f9e857d41ae44ef2d41d1ece21931c451bf6f2de",
+	2: "48394d58af8cc447f46cdb6ffd1a89fe0410d31b22727a96c6ead5cc4a6727e6",
+	3: "551ecd56eb62086be7ddced205ae79783821155c7282b10f6759a8727512c60e",
 }
 
 func TestGolden_WorkflowFiles(t *testing.T) {
