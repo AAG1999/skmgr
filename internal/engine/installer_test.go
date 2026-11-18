@@ -79,28 +79,3 @@ func TestInstall_UpdateReplacesExisting(t *testing.T) {
 		t.Error("New files were not installed")
 	}
 }
-
-func TestCleanOrphans_RemovesUnlisted(t *testing.T) {
-	root := t.TempDir()
-	skillsDir := filepath.Join(root, ".agents", "skills")
-	_ = os.MkdirAll(filepath.Join(skillsDir, "valid-skill"), 0755)
-	_ = os.MkdirAll(filepath.Join(skillsDir, "orphan-skill"), 0755)
-
-	resolved := []ResolvedSkill{
-		{
-			SkillDependency: types.SkillDependency{Name: "valid-skill", Scope: types.ScopeProject},
-		},
-	}
-
-	i := NewInstaller(root)
-	if err := i.CleanOrphans(resolved, types.ScopeProject); err != nil {
-		t.Fatalf("CleanOrphans failed: %v", err)
-	}
-
-	if _, err := os.Stat(filepath.Join(skillsDir, "valid-skill")); os.IsNotExist(err) {
-		t.Error("Valid skill was incorrectly removed")
-	}
-	if _, err := os.Stat(filepath.Join(skillsDir, "orphan-skill")); !os.IsNotExist(err) {
-		t.Error("Orphan skill was not removed")
-	}
-}

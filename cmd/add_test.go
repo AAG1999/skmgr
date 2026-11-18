@@ -142,3 +142,45 @@ skills: []
 		t.Errorf("Expected name to be inferred as %q, got manifest:\n%s", base, string(data))
 	}
 }
+
+// Skills written by another tool are not in the lock, so add must not delete them.
+func TestAdd_KeepsUnmanagedSkillAndMarkerFile(t *testing.T) {
+	dir := newProjectDir(t)
+	writeManifest(t, "skmgr.yml", `version: "1"
+name: test
+targets:
+  - cursor
+skills: []
+`)
+
+	other := filepath.Join(dir, ".agents", "skills", "other-tool-skill")
+	if err := os.MkdirAll(other, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "SKILL.md"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dir, ".agents", "skills", ".openspec-target")
+	if err := os.WriteFile(marker, []byte("marker"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	source := newSkillSource(t, "my-skill")
+	addName = "my-skill"
+	addPath = "skills/my-skill"
+	addRef = "main"
+
+	if err := addCmd.RunE(addCmd, []string{"file://" + source}); err != nil {
+		t.Fatalf("add failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(other, "SKILL.md")); err != nil {
+		t.Errorf("unmanaged skill was deleted: %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Errorf("marker file was deleted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".agents", "skills", "my-skill", "SKILL.md")); err != nil {
+		t.Errorf("added skill was not installed: %v", err)
+	}
+}

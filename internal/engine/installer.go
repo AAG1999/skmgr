@@ -172,16 +172,35 @@ func (i *Installer) stagingDir(scope string) (string, error) {
 	return dir, nil
 }
 
-// CleanOrphans removes any directories in the canonical locations that are not present in the resolved skills.
-func (i *Installer) CleanOrphans(resolved []ResolvedSkill, scope string) error {
-	validNames := make(map[string]bool)
-	for _, rs := range resolved {
-		if rs.SkillDependency.EffectiveScope() == scope {
-			validNames[rs.SkillDependency.Name] = true
+// RemoveCanonicalDirectories removes name from the skills and rules trees when
+// each path is a directory. A missing path or a non-directory is left in place,
+// so a marker file is never treated as an installed skill.
+func (i *Installer) RemoveCanonicalDirectories(name string, scope string) error {
+	if err := types.ValidateName(name); err != nil {
+		return err
+	}
+
+	for _, baseDir := range []string{
+		types.CanonicalSkillsDir(scope, i.projectRoot),
+		types.CanonicalRulesDir(scope, i.projectRoot),
+	} {
+		path := filepath.Join(baseDir, name)
+		info, err := os.Lstat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("inspecting %q: %w", path, err)
+		}
+		if !info.IsDir() {
+			continue
+		}
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf("removing orphan %q: %w", path, err)
 		}
 	}
 
-	return i.CleanOrphansByName(validNames, scope)
+	return nil
 }
 
 // RemoveCanonical deletes a skill's canonical directory. Both the skills and
