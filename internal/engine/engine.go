@@ -153,8 +153,10 @@ func (e *Engine) Sync(manifest *types.Manifest, existingLock *types.Lockfile, op
 		})
 	}
 
-	// 3. Clean up orphans (skills in .agents/ that are no longer in the manifest)
-	if err := e.Installer.CleanOrphans(resolvedSkills, types.ScopeProject); err != nil {
+	// 3. Remove project directories the previous lock recorded that this sync did
+	// not resolve with project scope. A directory skmgr never recorded is left
+	// alone; the home tree is pruned separately against the global ledger.
+	if err := e.removeUnlockedProjectDirs(existingLock, resolvedSkills); err != nil {
 		return nil, fmt.Errorf("cleaning project orphans: %w", err)
 	}
 	if err := e.cleanGlobalOrphans(resolvedSkills); err != nil {
@@ -294,6 +296,35 @@ func FilterSkills(manifest *types.Manifest, lock *types.Lockfile, names []string
 	}
 
 	return selected, nil
+}
+
+// removeUnlockedProjectDirs deletes project canonical directories whose names
+// the previous lock recorded and this sync did not resolve with project scope.
+// Names never recorded are not candidates. Reserved workflow names are never
+// removed. A nil lock removes nothing.
+func (e *Engine) removeUnlockedProjectDirs(existingLock *types.Lockfile, resolved []ResolvedSkill) error {
+	if existingLock == nil {
+		return nil
+	}
+
+	kept := make(map[string]bool)
+	for _, rs := range resolved {
+		if rs.SkillDependency.EffectiveScope() == types.ScopeProject {
+			kept[rs.SkillDependency.Name] = true
+		}
+	}
+
+	for _, entry := range existingLock.Entries {
+		name := entry.Name
+		if kept[name] || types.IsReservedWorkflowName(name) {
+			continue
+		}
+		if err := e.Installer.RemoveCanonicalDirectories(name, types.ScopeProject); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // removeDroppedEntries unlinks anything that was installed previously but is no

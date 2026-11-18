@@ -71,8 +71,13 @@ flowchart TD
   M --> N[Return new lockfile]
 ```
 
-Two cleanup passes are deliberately different. Project orphans are decided from
-this project's manifest alone. Global orphans are decided from the ledger union,
+Two cleanup passes are deliberately different. Project cleanup removes a
+directory under `.agents/skills/` or `.agents/rules/` only when its name is in
+the previous lockfile and the manifest does not resolve that name with project
+scope. A directory never recorded in the lock is left alone. A project
+directory whose name matches a lock entry but is not a current project install
+is still removed, because the lock has no scope and cannot tell an old project
+copy from a name collision. Global orphans are decided from the ledger union,
 because `~/.agents/` is shared by every project on the machine.
 
 Unlinking sweeps every known agent rather than the current target list, because

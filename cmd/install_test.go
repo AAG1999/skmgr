@@ -228,3 +228,81 @@ skills:
 		t.Errorf("keep-me should still be installed: %v", err)
 	}
 }
+
+// The first install has no lockfile, so directories skmgr did not create are
+// not orphans and must still be there afterwards.
+func TestInstall_KeepsUnmanagedDirectoriesWhenNoLockfile(t *testing.T) {
+	dir := newProjectDir(t)
+	source := newSkillSource(t, "my-skill")
+
+	writeManifest(t, "skmgr.yml", fmt.Sprintf(`version: "1"
+name: test
+targets:
+  - cursor
+skills:
+  - source: file://%s
+    path: skills/my-skill
+`, source))
+
+	skill := filepath.Join(dir, ".agents", "skills", "other-tool-skill")
+	rule := filepath.Join(dir, ".agents", "rules", "other-tool-rule")
+	if err := os.MkdirAll(skill, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skill, "SKILL.md"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(rule, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rule, "RULE.md"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, LockfileName)); !os.IsNotExist(err) {
+		t.Fatal("this case requires no lockfile before install")
+	}
+
+	if err := installCmd.RunE(installCmd, nil); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(skill, "SKILL.md")); err != nil {
+		t.Errorf("unmanaged skill was deleted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(rule, "RULE.md")); err != nil {
+		t.Errorf("unmanaged rule was deleted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".agents", "skills", "my-skill", "SKILL.md")); err != nil {
+		t.Errorf("declared skill was not installed: %v", err)
+	}
+}
+
+func TestInstall_KeepsReservedWorkflowSkill(t *testing.T) {
+	dir := newProjectDir(t)
+	source := newSkillSource(t, "my-skill")
+
+	writeManifest(t, "skmgr.yml", fmt.Sprintf(`version: "1"
+name: test
+targets:
+  - cursor
+skills:
+  - source: file://%s
+    path: skills/my-skill
+`, source))
+
+	reserved := filepath.Join(dir, ".agents", "skills", "skmgr-find-skill")
+	if err := os.MkdirAll(reserved, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(reserved, "SKILL.md"), []byte("workflow"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := installCmd.RunE(installCmd, nil); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(reserved, "SKILL.md")); err != nil {
+		t.Errorf("reserved workflow skill was deleted: %v", err)
+	}
+}
