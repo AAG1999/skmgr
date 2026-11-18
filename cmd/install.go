@@ -57,6 +57,14 @@ gets installed.`,
 
 		e := engine.NewEngine(proj.Root, types.CacheDir())
 
+		var plan *engine.Plan
+		if jsonOutput {
+			plan, err = e.Plan(proj.Manifest, proj.Lock, opts)
+			if err != nil {
+				return err
+			}
+		}
+
 		log.Debugf("installing %d declared skills from %s", len(proj.Manifest.Skills), proj.ManifestPath)
 		if installFrozen {
 			log.Debugf("frozen mode: pinning to %s and skipping remote resolution", LockfileName)
@@ -76,6 +84,10 @@ gets installed.`,
 			return fmt.Errorf("writing lockfile: %w", err)
 		}
 
+		if jsonOutput {
+			return presentPlan(cmd, false, plan)
+		}
+
 		log.Infof("Installed %d skills", len(newLock.Entries))
 		return nil
 	},
@@ -87,5 +99,6 @@ func init() {
 	installCmd.Flags().BoolVar(&installOffline, "offline", false,
 		"Never access the network; use only the local cache (or set SKMGR_OFFLINE=1)")
 	dryRunFlag(installCmd, &installDryRun, "the install")
+	jsonFlag(installCmd)
 	rootCmd.AddCommand(installCmd)
 }

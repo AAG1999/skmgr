@@ -247,6 +247,11 @@ func (i *Installer) CleanOrphansByName(validNames map[string]bool, scope string)
 			if !entry.IsDir() {
 				continue
 			}
+			if types.IsReservedWorkflowName(entry.Name()) {
+				// Generated chat skills share this tree with installed skills.
+				// A dependency must not be able to delete them by omitting the name.
+				continue
+			}
 			if !validNames[entry.Name()] {
 				// Orphan found, remove it
 				orphanPath := filepath.Join(baseDir, entry.Name())

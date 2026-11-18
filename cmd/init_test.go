@@ -42,6 +42,9 @@ func TestInit_DetectsExistingAgentDirectories(t *testing.T) {
 		}
 	}
 
+	initTerminal = func() bool { return true }
+	initReader = strings.NewReader("\n")
+
 	if err := initCmd.RunE(initCmd, nil); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -66,6 +69,9 @@ func TestInit_DetectsExistingAgentDirectories(t *testing.T) {
 
 func TestInit_NoAgentsLeavesTargetsCommented(t *testing.T) {
 	dir := newProjectDir(t)
+
+	initTerminal = func() bool { return true }
+	initReader = strings.NewReader("\n")
 
 	if err := initCmd.RunE(initCmd, nil); err != nil {
 		t.Fatalf("init failed: %v", err)
@@ -96,20 +102,27 @@ targets: []
 skills: []
 `)
 
-	err := initCmd.RunE(initCmd, nil)
-	if err == nil {
-		t.Fatal("init should refuse to run when skmgr.yaml already exists")
-	}
-	if !strings.Contains(err.Error(), "skmgr.yaml") {
-		t.Errorf("error should name the conflicting file, got: %v", err)
+	initTargets = []string{"cursor"}
+
+	if err := initCmd.RunE(initCmd, nil); err != nil {
+		t.Fatalf("init should update the existing skmgr.yaml: %v", err)
 	}
 	if _, statErr := os.Stat(filepath.Join(dir, "skmgr.yml")); !os.IsNotExist(statErr) {
-		t.Error("init must not create skmgr.yml when it refuses")
+		t.Error("init must not create skmgr.yml beside an existing skmgr.yaml")
+	}
+	m, err := manifest.Parse(filepath.Join(dir, "skmgr.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Targets) != 1 || m.Targets[0] != "cursor" {
+		t.Errorf("targets = %v, want [cursor]", m.Targets)
 	}
 }
 
 func TestInit_CreatesCanonicalDirectories(t *testing.T) {
 	dir := newProjectDir(t)
+
+	initTargets = []string{"cursor"}
 
 	if err := initCmd.RunE(initCmd, nil); err != nil {
 		t.Fatalf("init failed: %v", err)

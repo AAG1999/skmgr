@@ -36,9 +36,9 @@ jobs:
           mkdir e2e-test
           cd e2e-test
 
-          # init detects agents from the directories that already exist.
+          # CI has no terminal, so the agent choice is passed explicitly.
           mkdir -p .cursor .claude
-          ../skmgr init
+          ../skmgr init --targets cursor,claude-code
           cat skmgr.yml
 
           grep -q '^  - cursor$' skmgr.yml
@@ -127,7 +127,7 @@ jobs:
 
           mkdir -p derive/.cursor
           cd derive
-          ../skmgr init
+          ../skmgr init --targets cursor
 
           # No --name: the last path segment is used.
           ../skmgr add "file://$PWD/../derive-src" --path skills/deploy-helper
@@ -157,7 +157,7 @@ jobs:
 
           mkdir -p frozen/.cursor
           cd frozen
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add https://github.com/AAG1999/skmgr.git --name frozen-skill --path .github
 
           cp skmgr.lock expected.lock
@@ -181,7 +181,7 @@ jobs:
 
           mkdir -p frozen-nolock/.cursor
           cd frozen-nolock
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add https://github.com/AAG1999/skmgr.git --name a-skill --path .github
           rm skmgr.lock
 
@@ -199,7 +199,7 @@ jobs:
 
           mkdir -p named-update/.cursor
           cd named-update
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add https://github.com/AAG1999/skmgr.git --name real-skill --path .github
 
           if ../skmgr update no-such-skill; then
@@ -237,13 +237,11 @@ jobs:
 
           ../skmgr list
 
-          # init must refuse rather than shadow the .yaml file with a .yml one.
-          if ../skmgr init; then
-            echo "FAIL: init overwrote a project that already had skmgr.yaml"
-            exit 1
-          fi
+          # A second init updates that yaml and must not create a shadowing yml.
+          ../skmgr init --targets cursor
           test ! -f skmgr.yml
-          echo "OK: .yaml parity and init refusal both hold"
+          grep -q 'yaml-skill' skmgr.yaml
+          echo "OK: .yaml parity holds and init did not create skmgr.yml"
 
       # Dropping a merged rule must remove its block from the shared file.
       - name: Clean strips managed rule blocks
@@ -273,7 +271,7 @@ jobs:
           Always run the linter.
           MD
 
-          ../skmgr init
+          ../skmgr init --targets claude-code
           ../skmgr add "git::$PWD/../rule-src" \
             --name merged-rule --path rules/merged-rule --type rule
 
@@ -301,7 +299,7 @@ jobs:
 
           mkdir -p global-guard/.cursor
           cd global-guard
-          ../skmgr init
+          ../skmgr init --targets cursor
 
           # This project declares only project-scoped skills.
           ../skmgr add https://github.com/AAG1999/skmgr.git --name guard-skill --path .github
@@ -327,7 +325,7 @@ jobs:
 
           mkdir -p global-scope/.cursor
           cd global-scope
-          ../skmgr init
+          ../skmgr init --targets cursor
 
           ../skmgr add https://github.com/AAG1999/skmgr.git \
             --name global-skill --path .github --scope global
@@ -353,7 +351,7 @@ jobs:
 
           mkdir -p drift/.cursor
           cd drift
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add "file://$PWD/../drift-src" --path skills/pinned
 
           grep -q original .agents/skills/pinned/SKILL.md
@@ -387,7 +385,7 @@ jobs:
 
           mkdir -p verify/.cursor
           cd verify
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add "file://$PWD/../verify-src" --path skills/checked
 
           ../skmgr verify
@@ -416,7 +414,7 @@ jobs:
 
           mkdir -p offline/.cursor
           cd offline
-          ../skmgr init
+          ../skmgr init --targets cursor
 
           cat > skmgr.yml <<'YML'
           version: "1"
@@ -458,7 +456,7 @@ jobs:
 
           mkdir -p cache-mgmt/.cursor
           cd cache-mgmt
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add https://github.com/AAG1999/skmgr.git \
             --name cached-skill --path .github
 
@@ -484,7 +482,7 @@ jobs:
 
           mkdir -p partial/.cursor
           cd partial
-          ../skmgr init
+          ../skmgr init --targets cursor
           ../skmgr add "file://$PWD/../partial-src" --path skills/big
 
           # Make the source unreadable so the next install fails part-way.
@@ -618,7 +616,7 @@ jobs:
           echo "# secret" > traversal/secret/SKILL.md
 
           cd traversal
-          ../skmgr init
+          ../skmgr init --targets cursor
 
           if ../skmgr add "file://$PWD/src" --name evil --path ../secret; then
             echo "FAIL: skmgr accepted a path escaping the source root"
@@ -636,7 +634,7 @@ jobs:
           echo "# ok" > unsafe-name/src/skills/ok/SKILL.md
 
           cd unsafe-name
-          ../skmgr init
+          ../skmgr init --targets cursor
 
           if ../skmgr add "file://$PWD/src" --name "../escape" --path skills/ok; then
             echo "FAIL: skmgr accepted a name containing a path traversal"

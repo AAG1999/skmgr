@@ -169,8 +169,8 @@ func (c gitCache) withRepo(source string, opts FetchOptions) error {
 func (c gitCache) ensureRepo(source string, opts FetchOptions) error {
 	if !c.cloned() {
 		if opts.Offline {
-			return fmt.Errorf(
-				"offline: %q is not in the cache; run without --offline once to populate it", source)
+			return &NetworkError{Op: "offline", Source: source, Err: fmt.Errorf(
+				"offline: %q is not in the cache; run without --offline once to populate it", source)}
 		}
 		return c.clone(source)
 	}
@@ -198,11 +198,15 @@ func (c gitCache) clone(source string) error {
 		return fmt.Errorf("clearing partial clone: %w", err)
 	}
 
-	return runGitWithRetry("clone", func() *exec.Cmd {
+	err := runGitWithRetry("clone", func() *exec.Cmd {
 		// The trailing -- ends option parsing, so a source that somehow reached
 		// here could still not be read as a flag.
 		return exec.Command("git", "clone", "--quiet", "--no-checkout", "--", source, c.repoDir)
 	})
+	if err != nil {
+		return &NetworkError{Op: "clone", Source: source, Err: err}
+	}
+	return nil
 }
 
 // fetch refreshes remote-tracking refs and tags so moving refs advance.
@@ -213,7 +217,7 @@ func (c gitCache) fetch(source string) error {
 		return cmd
 	})
 	if err != nil {
-		return fmt.Errorf("fetching %q: %w", source, err)
+		return &NetworkError{Op: "fetch", Source: source, Err: fmt.Errorf("fetching %q: %w", source, err)}
 	}
 	return nil
 }

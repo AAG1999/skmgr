@@ -119,6 +119,14 @@ derived.`,
 
 		e := engine.NewEngine(proj.Root, types.CacheDir())
 
+		var plan *engine.Plan
+		if jsonOutput {
+			plan, err = e.Plan(&updated, proj.Lock, engine.SyncOptions{})
+			if err != nil {
+				return err
+			}
+		}
+
 		newLock, err := e.Sync(&updated, proj.Lock, engine.SyncOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to install newly added skill: %w", err)
@@ -134,6 +142,10 @@ derived.`,
 		}
 		if err := lockfile.Write(proj.LockPath, newLock); err != nil {
 			return err
+		}
+
+		if jsonOutput {
+			return presentPlan(cmd, false, plan)
 		}
 
 		label := name
@@ -187,6 +199,7 @@ func init() {
 	addCmd.Flags().StringSliceVar(&addTargets, "targets", nil, "Specific agent targets (overrides manifest global targets)")
 	addGlobalFlag(addCmd, "Shorthand for --scope global (installs to ~/.agents/)")
 	dryRunFlag(addCmd, &addDryRun, "adding this skill")
+	jsonFlag(addCmd)
 
 	rootCmd.AddCommand(addCmd)
 }

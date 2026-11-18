@@ -114,6 +114,7 @@ func (p *GitProvider) Fetch(skill types.SkillDependency, cacheDir string, opts F
 		SourceDirs:  sourceDirs,
 		CommitSHA:   materialized.SHA,
 		ResolvedRef: materialized.ResolvedRef,
+		Root:        repoDir,
 	}, nil
 }
 

@@ -154,6 +154,12 @@ func Execute() {
 		return
 	}
 
+	// --json keeps stdout to a single document. A command that already printed
+	// its report (doctor, verify) must not get a second one.
+	if jsonOutput {
+		os.Exit(writeError(os.Stdout, err))
+	}
+
 	// A command that already printed a full report exits with its status and
 	// nothing more; anything else gets the usual one-line error.
 	var silent *silentError
@@ -170,6 +176,11 @@ func exitStatusFor(err error) int {
 	var drift *engine.HashMismatchError
 	if errors.As(err, &drift) {
 		return ExitDrift
+	}
+
+	var usage *UsageError
+	if errors.As(err, &usage) {
+		return ExitUsage
 	}
 
 	// Cobra reports a bad flag or a wrong argument count as a plain error, and

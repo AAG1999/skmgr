@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/AAG1999/skmgr/internal/linker"
 	"github.com/AAG1999/skmgr/internal/lockfile"
@@ -62,6 +63,9 @@ directory instead, and releases the global ownership ledger.`,
 
 		// --cache on its own means "only the cache". --all means everything.
 		if cleanCache && !cleanAll {
+			if jsonOutput {
+				return emit(cmd, map[string]bool{"cleaned": true})
+			}
 			return nil
 		}
 
@@ -82,6 +86,9 @@ directory instead, and releases the global ownership ledger.`,
 			}
 		}
 
+		if jsonOutput {
+			return emit(cmd, map[string]bool{"cleaned": true})
+		}
 		return nil
 	},
 }
@@ -99,7 +106,7 @@ func cleanScope(scope string, projectRoot string) error {
 		return err
 	}
 
-	if err := os.RemoveAll(canonical); err != nil {
+	if err := removeCanonicalChildren(canonical); err != nil {
 		return fmt.Errorf("failed to remove %s: %w", canonical, err)
 	}
 
@@ -140,9 +147,55 @@ func releaseGlobalLedger(projectRoot string) error {
 	return nil
 }
 
+// removeCanonicalChildren deletes installed content while leaving the
+// generated workflow skills in place. Those files are real files inside
+// .agents/skills for Gemini, and a blanket RemoveAll would take them with it.
+func removeCanonicalChildren(canonical string) error {
+	entries, err := os.ReadDir(canonical)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		path := filepath.Join(canonical, entry.Name())
+		if entry.IsDir() && entry.Name() == "skills" {
+			if err := removeExceptReserved(path); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeExceptReserved(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		if types.IsReservedWorkflowName(entry.Name()) {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func init() {
 	cleanCmd.Flags().BoolVar(&cleanCache, "cache", false, "Clean the global download cache instead of the project")
 	cleanCmd.Flags().BoolVar(&cleanAll, "all", false, "Clean the project, the global scope, and the cache")
 	addGlobalFlag(cleanCmd, "Clean the global scope (~/.agents/) instead of the project")
+	jsonFlag(cleanCmd)
 	rootCmd.AddCommand(cleanCmd)
 }

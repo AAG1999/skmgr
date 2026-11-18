@@ -27,6 +27,7 @@ import (
 	"github.com/AAG1999/skmgr/internal/engine"
 	"github.com/AAG1999/skmgr/internal/provider"
 	"github.com/AAG1999/skmgr/internal/types"
+	"github.com/AAG1999/skmgr/internal/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -130,9 +131,47 @@ func runChecks() []checkResult {
 		checkSymlinks(proj),
 		checkLockfile(proj),
 		checkInstalled(proj),
+		checkWorkflow(proj),
 	)
 
 	return results
+}
+
+// checkWorkflow fails when a selected agent is missing its generated files or
+// those files were produced by an older template. A file someone edited is
+// left alone: init will not overwrite it either.
+func checkWorkflow(proj *projectContext) checkResult {
+	if len(proj.Manifest.Targets) == 0 {
+		return checkResult{Name: "workflow", State: checkPass, Detail: "no agents selected"}
+	}
+	files, err := workflow.RenderSelected(proj.Root, proj.Manifest.Targets)
+	if err != nil {
+		return checkResult{Name: "workflow", State: checkFail, Detail: err.Error(), Remedy: "run skmgr init"}
+	}
+	var problems int
+	for _, file := range files {
+		data, err := os.ReadFile(filepath.Join(proj.Root, filepath.FromSlash(file.Rel)))
+		if err != nil {
+			problems++
+			continue
+		}
+		rev, generated := workflow.RevisionOf(string(data))
+		if !generated || workflow.Edited(string(data)) {
+			continue
+		}
+		if rev < workflow.TemplateRevision {
+			problems++
+		}
+	}
+	if problems > 0 {
+		return checkResult{
+			Name:   "workflow",
+			State:  checkFail,
+			Detail: fmt.Sprintf("%d workflow file(s) missing or from an older template", problems),
+			Remedy: "run skmgr init",
+		}
+	}
+	return checkResult{Name: "workflow", State: checkPass, Detail: "workflow files are current"}
 }
 
 // checkGit confirms git is on PATH, since every remote source needs it.

@@ -59,6 +59,14 @@ var removeCmd = &cobra.Command{
 		// files, lock entry and agent links were all still in place.
 		e := engine.NewEngine(proj.Root, types.CacheDir())
 
+		var plan *engine.Plan
+		if jsonOutput {
+			plan, err = e.Plan(&trimmed, proj.Lock, engine.SyncOptions{})
+			if err != nil {
+				return err
+			}
+		}
+
 		newLock, err := e.Sync(&trimmed, proj.Lock, engine.SyncOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to sync after removal: %w", err)
@@ -71,6 +79,10 @@ var removeCmd = &cobra.Command{
 			return fmt.Errorf("failed to save lockfile: %w", err)
 		}
 
+		if jsonOutput {
+			return presentPlan(cmd, false, plan)
+		}
+
 		log.Infof("Removed %q", name)
 		return nil
 	},
@@ -78,5 +90,6 @@ var removeCmd = &cobra.Command{
 
 func init() {
 	dryRunFlag(removeCmd, &removeDryRun, "the removal")
+	jsonFlag(removeCmd)
 	rootCmd.AddCommand(removeCmd)
 }

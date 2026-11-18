@@ -47,8 +47,7 @@ func runDryRun(
 		return err
 	}
 
-	printPlan(cmd.OutOrStdout(), plan)
-	return nil
+	return presentPlan(cmd, true, plan)
 }
 
 // printPlan renders a plan as a table of the changes it would make.

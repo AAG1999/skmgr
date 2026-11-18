@@ -54,6 +54,14 @@ For a pinned, reproducible install use "skmgr install --frozen".`,
 
 		e := engine.NewEngine(proj.Root, types.CacheDir())
 
+		var plan *engine.Plan
+		if jsonOutput {
+			plan, err = e.Plan(proj.Manifest, proj.Lock, opts)
+			if err != nil {
+				return err
+			}
+		}
+
 		newLock, err := e.Sync(proj.Manifest, proj.Lock, opts)
 		if err != nil {
 			return fmt.Errorf("sync failed: %w", err)
@@ -61,6 +69,10 @@ For a pinned, reproducible install use "skmgr install --frozen".`,
 
 		if err := lockfile.Write(proj.LockPath, newLock); err != nil {
 			return fmt.Errorf("writing lockfile: %w", err)
+		}
+
+		if jsonOutput {
+			return presentPlan(cmd, false, plan)
 		}
 
 		log.Infof("Synced %d skills with %s", len(newLock.Entries), proj.ManifestPath)
@@ -72,5 +84,6 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncOffline, "offline", false,
 		"Never access the network; use only the local cache (or set SKMGR_OFFLINE=1)")
 	dryRunFlag(syncCmd, &syncDryRun, "the sync")
+	jsonFlag(syncCmd)
 	rootCmd.AddCommand(syncCmd)
 }
