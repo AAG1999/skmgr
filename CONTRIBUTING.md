@@ -126,13 +126,15 @@ defeats the point of committing a lockfile.
 Adding one means:
 
 1. A definition in `internal/types/config.go` describing its skills directory,
-   its rules path, and whether rules are symlinked or merged.
+   its rules path, whether rules are symlinked or merged, and `CommandFile`
+   plus `CommandInvocation` for the slash command.
 2. Its name in `SupportedAgentNames()`.
 3. Its name in the `agent` enum in `schemas/skmgr.schema.json` — a test asserts
    these two agree.
-4. Detection in `cmd/init.go`, so `skmgr init` picks it up from a directory
-   that already exists.
-5. A row in the agent table in `README.md`.
+4. Detection in `cmd/init.go`, so the init question pre-selects it when its
+   directory already exists.
+5. A row in the agent table in `README.md` and `docs/reference/agents.md`.
+6. Regenerate `internal/workflow/testdata/workflow` with `UPDATE_GOLDEN=1 go test ./internal/workflow/` and commit the new files.
 
 ## Commits and pull requests
 

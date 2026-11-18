@@ -60,8 +60,26 @@ Pre-built binaries: [Releases](https://github.com/AAG1999/skmgr/releases).
 
 ## Quickstart
 
+Install the binary, then work from chat. `skmgr init` asks which agents you use (or take `--targets` in CI), writes a skill and a slash command for each of them, and asks you to restart the IDE.
+
 ```bash
-skmgr init
+skmgr init --targets cursor
+```
+
+```text
+Getting started
+  /skmgr-find-skill
+  /skmgr-install-skill
+  /skmgr-update-skill
+  /skmgr-remove-skill
+Restart your IDE to refresh skills.
+```
+
+After the restart, `/skmgr-find-skill` searches for a skill, `/skmgr-install-skill` adds it to `skmgr.yml`, `/skmgr-update-skill` re-resolves refs, and `/skmgr-remove-skill` removes one. The same actions are available as shorter slash commands (`/skm-find` in Cursor and Copilot, `/skm:find` in Claude Code and Gemini).
+
+The CLI stays available for terminals and CI:
+
+```bash
 skmgr add https://github.com/anthropics/skills.git --path skills/frontend-design
 skmgr install
 skmgr list
@@ -102,10 +120,11 @@ Full field reference, versioning, and lockfile details: [docs/reference/manifest
 
 | Command | What it does |
 |---------|--------------|
-| `skmgr init` | Create `skmgr.yml` and `.agents/` |
+| `skmgr init` | Create `skmgr.yml`, `.agents/`, and the chat workflow files |
+| `skmgr discover <source>` | List the skills and rules one source offers |
 | `skmgr add` / `remove` | Add or remove a dependency |
 | `skmgr install` | Install from the manifest (`--frozen`, `--offline`) |
-| `skmgr update` / `outdated` | Bump refs; see available updates |
+| `skmgr update` / `outdated` | Re-resolve refs and rewrite `skmgr.lock`; see available updates |
 | `skmgr list` / `tree` / `verify` | Inspect status and integrity |
 | `skmgr doctor` | Diagnose the local environment |
 | `skmgr clean` / `cache` | Clean installs and prune the cache |
@@ -135,6 +154,7 @@ Details: [docs/how-it-works.md](docs/how-it-works.md) · agent matrix: [docs/ref
 | [docs/reference/manifest.md](docs/reference/manifest.md) | Manifest, versioning, lockfile |
 | [docs/reference/cli.md](docs/reference/cli.md) | Commands, flags, exit codes, config |
 | [docs/reference/agents.md](docs/reference/agents.md) | Skills vs rules, agent paths |
+| [docs/reference/workflow-skills.md](docs/reference/workflow-skills.md) | The four chat skills and slash commands |
 | [docs/reference/](docs/reference/config.md) | Config, env vars, exit codes, private git |
 
 ## Contributing

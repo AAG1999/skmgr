@@ -36,7 +36,8 @@ offline: false
 # Default verbosity: debug, info, warn, or error.
 log_level: info
 
-# Agents to write into a new skmgr.yml when `skmgr init` cannot detect any.
+# Recorded for your own notes. skmgr init does not copy this list;
+# pass --targets, or answer the question in the terminal.
 targets:
   - cursor
   - claude-code
@@ -65,7 +66,7 @@ prefix on Windows, which is how the 260-character path limit is avoided.
 | `cache_dir` | string | `<home>/cache` | The download cache, on its own so it can go on a different disk. |
 | `offline` | boolean | `false` | Forbids network access, as though `--offline` were passed everywhere. |
 | `log_level` | string | `info` | Default verbosity. |
-| `targets` | list of strings | none | Agents `skmgr init` writes into a new manifest when it cannot detect any from the project. |
+| `targets` | list of strings | none | Accepted by the config file. `skmgr init` does not apply it; the terminal question or `--targets` chooses the agents. |
 
 ## Precedence
 

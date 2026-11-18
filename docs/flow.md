@@ -6,17 +6,18 @@ User and application flows for **skmgr**.
 
 | Command | What the user wants | What the app does |
 |---------|---------------------|-------------------|
-| `init` | Start a project | Detect agents from existing dirs; write `skmgr.yml`; create `.agents/{skills,rules}` |
+| `init` | Start a project, or refresh chat workflow files | Ask which agents to manage (or take `--targets`); write or update `skmgr.yml`; create `.agents/{skills,rules}`; write skills and slash commands. A later run keeps the skills list and `skmgr.lock` |
 | `add <source>` | Add a dependency | Sync with the entry appended → write manifest and lock on success |
 | `remove <name>` | Drop a dependency | Sync without the entry → unlink, delete canonical copy, scrub merged block |
 | `install` | Install from manifest | Sync → write lock. `--frozen` pins to the lock; `--offline` forbids network |
-| `update [name...]` | Refresh refs | Sync with the named entries unpinned, the rest held at their locked SHA |
+| `update [name...]` | Refresh refs | Sync with the named entries unpinned, the rest held at their locked SHA. Does not refresh workflow files |
 | `sync` | Align disk with manifest | Same pipeline as install |
 | `list` | See installed skills | Read manifest and lock; hash what is on disk; print a table or JSON |
 | `verify` | Confirm nothing drifted | Hash each installed skill and compare to the lock; never touches the network |
 | `outdated` | See what is available | Read each source's tags; report installed, newest in range, newest overall |
 | `cache path\|info\|prune` | Inspect or shrink the cache | Report cached commit trees; delete them by age or total size |
-| `clean` | Wipe installs / cache | Strip merged blocks, remove `.agents/`, prune broken links; `--global` and `--cache` extend the scope |
+| `discover <source>` | See what one source offers | Fetch into the cache and list skills and rules. Does not change the project |
+| `clean` | Wipe installs / cache | Strip merged blocks, remove installed children of `.agents/`, keep generated workflow skills, prune broken links; `--global` and `--cache` extend the scope |
 | `tree` | See the layout | Group resolved skills by scope, then by agent, and print the shape |
 | `doctor` | Find out why something is broken | Check git, config, cache, store, symlink support, and install drift; exit `3` on any failure |
 | `self-update` | Get the newest skmgr | Read the latest GitHub release, download the build for this platform, swap the binary atomically. Bootstrap installs use `scripts/install.sh` (Unix) or `scripts/install.ps1` (Windows). |
@@ -30,10 +31,10 @@ change without writing anything.
 
 ```mermaid
 flowchart TD
-  A[skmgr init] --> B[Edit skmgr.yml targets]
-  B --> C[skmgr add source ...]
-  C --> D[Sync]
-  D --> E[skmgr list]
+  A[skmgr init] --> B[Restart the IDE]
+  B --> C["/skmgr-find-skill"]
+  C --> D["/skmgr-install-skill"]
+  D --> E[Sync]
   E --> F[Commit skmgr.yml + skmgr.lock]
 ```
 
