@@ -111,6 +111,7 @@ jobs:
 
           ../skmgr verify
           ../skmgr install --frozen
+          ../skmgr init --targets cursor
           ../skmgr doctor
 
           echo "OK: a real public skill installed reproducibly from a pinned commit"

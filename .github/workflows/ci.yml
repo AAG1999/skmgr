@@ -95,7 +95,7 @@ jobs:
 
           mkdir -p scenario/.cursor
           cd scenario
-          "$BIN" init
+          "$BIN" init --targets cursor
           "$BIN" add https://github.com/AAG1999/skmgr.git \
             --name checked --path .github
 
@@ -236,6 +236,9 @@ jobs:
           BIN="$PWD/skmgr-bin"
           cd sv
 
+          # The manifest names cursor, so the workflow files have to exist
+          # before doctor will call the project healthy.
+          "$BIN" init --targets cursor
           "$BIN" doctor
           "$BIN" doctor --json | grep -q '"name": *"git"'
           "$BIN" tree | grep -q 'tool'
