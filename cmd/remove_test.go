@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,38 +45,44 @@ skills: []
 }
 
 func TestRemove_Success(t *testing.T) {
-	dir := t.TempDir()
-	originalWD, _ := os.Getwd()
-	_ = os.Chdir(dir)
-	defer func() { _ = os.Chdir(originalWD) }()
+	dir := newProjectDir(t)
+	source := newSkillSource(t, "my-skill")
 
-	_ = os.WriteFile("skmgr.yml", []byte(`version: "1"
+	writeManifest(t, "skmgr.yml", fmt.Sprintf(`version: "1"
 name: test
-targets: []
+targets:
+  - cursor
 skills:
-  - name: my-skill
-    source: dummy
-`), 0644)
+  - source: file://%s
+    path: skills/my-skill
+`, source))
 
-	_ = os.MkdirAll(filepath.Join(".agents", "skills", "my-skill"), 0755)
+	if err := installCmd.RunE(installCmd, nil); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
 
-	// Create dummy symlink to simulate an installed skill target
-	_ = os.MkdirAll(filepath.Join(".cursor", "skills"), 0755)
-	linkPath := filepath.Join(".cursor", "skills", "my-skill")
-	_ = os.Symlink(filepath.Join("..", "..", ".agents", "skills", "my-skill"), linkPath)
+	canonical := filepath.Join(dir, ".agents", "skills", "my-skill")
+	linkPath := filepath.Join(dir, ".cursor", "skills", "my-skill")
+	if _, err := os.Stat(canonical); err != nil {
+		t.Fatalf("install did not create the skill directory: %v", err)
+	}
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Fatalf("install did not create the agent link: %v", err)
+	}
 
-	cmd := removeCmd
-	err := cmd.RunE(cmd, []string{"my-skill"})
-	if err != nil {
+	if err := removeCmd.RunE(removeCmd, []string{"my-skill"}); err != nil {
 		t.Fatalf("Remove failed: %v", err)
 	}
 
-	data, _ := os.ReadFile("skmgr.yml")
+	data, err := os.ReadFile("skmgr.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Contains(string(data), "my-skill") {
 		t.Error("Skill was not removed from manifest")
 	}
 
-	if _, err := os.Stat(filepath.Join(".agents", "skills", "my-skill")); !os.IsNotExist(err) {
+	if _, err := os.Stat(canonical); !os.IsNotExist(err) {
 		t.Error("Skill directory was not cleaned up")
 	}
 
