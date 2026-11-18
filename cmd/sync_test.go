@@ -86,7 +86,9 @@ skills:
 	}
 }
 
-func TestSync_RemovesOrphanedCanonicalDir(t *testing.T) {
+// A directory the lock never recorded belongs to another tool. Sync must leave
+// it in place even though the manifest does not declare it.
+func TestSync_KeepsUndeclaredCanonicalDir(t *testing.T) {
 	dir := newProjectDir(t)
 	source := newSkillSource(t, "declared")
 
@@ -103,9 +105,11 @@ skills:
 		t.Fatalf("sync failed: %v", err)
 	}
 
-	// Something the manifest never mentioned.
 	stray := filepath.Join(dir, ".agents", "skills", "stray")
 	if err := os.MkdirAll(stray, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stray, "SKILL.md"), []byte("other tool"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,7 +117,10 @@ skills:
 		t.Fatalf("second sync failed: %v", err)
 	}
 
-	if _, err := os.Stat(stray); !os.IsNotExist(err) {
-		t.Error("sync should have removed the undeclared canonical directory")
+	if _, err := os.Stat(filepath.Join(stray, "SKILL.md")); err != nil {
+		t.Errorf("sync removed an undeclared directory it never installed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".agents", "skills", "declared", "SKILL.md")); err != nil {
+		t.Errorf("declared skill should still be installed: %v", err)
 	}
 }
