@@ -31,7 +31,7 @@ import (
 
 // TemplateRevision changes only when generated file content changes, so an
 // unrelated skmgr release does not rewrite files a project has committed.
-const TemplateRevision = 2
+const TemplateRevision = 3
 
 //go:embed templates/*.md
 var templateFS embed.FS
