@@ -66,7 +66,7 @@ func TemplateSources() map[string]string {
 		if err != nil {
 			continue
 		}
-		out[entry.Name()] = string(data)
+		out[entry.Name()] = lf(string(data))
 	}
 	return out
 }
@@ -80,7 +80,13 @@ func body(action Action) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(preamble)) + "\n\n" + strings.TrimSpace(string(specific)) + "\n", nil
+	return strings.TrimSpace(lf(string(preamble))) + "\n\n" + strings.TrimSpace(lf(string(specific))) + "\n", nil
+}
+
+// lf keeps generated text stable on Windows, where a checkout may have
+// rewritten the embedded templates with CRLF.
+func lf(text string) string {
+	return strings.ReplaceAll(text, "\r\n", "\n")
 }
 
 func toolsList(tools []string) string {

@@ -53,7 +53,7 @@ func TestGolden_WorkflowFiles(t *testing.T) {
 			if err != nil {
 				t.Fatalf("reading %s: %v (set UPDATE_GOLDEN=1 to create it)", golden, err)
 			}
-			if string(want) != file.Content {
+			if lf(string(want)) != lf(file.Content) {
 				t.Errorf("%s does not match the golden file", file.Rel)
 			}
 		}
