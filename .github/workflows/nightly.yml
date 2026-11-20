@@ -50,7 +50,7 @@ jobs:
       # rediscovering the same shallow inputs. Restoring the corpus is what
       # makes a nightly run cumulative.
       - name: Restore the fuzz corpus
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/go-build/fuzz
           key: fuzz-${{ matrix.target }}-${{ github.run_id }}
